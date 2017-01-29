@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="config.xsd">
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2016  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+	<description>
+		WEDO 2 by bluetooth
+		This file contains 'not strict'-definitions.
+		
+		
+	</description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.wedo2Adapter.Wedo2Adapter' name='wedo2'>
+		<description>WEDO 2 by bluetooth</description>
+
+		<!-- ===== ==================================== -->
+		<!-- MOTOR ==================================== -->
+
+		<input_value name='motor'>
+			<variable name='motor' />
+		</input_value>
+		
+		<input name='motor_run'>
+			<broadcast name='motor_run' />
+		</input>
+		<input name='motor_brake'>
+			<broadcast name='motor_brake' />
+		</input>
+		<input name='motor_drift'>
+			<broadcast name='motor_drift' />
+		</input>
+
+
+		<!-- ===== ==================================== -->
+		<!-- MOTION ==================================== -->
+		<!-- ===== ==================================== -->
+        
+		<output_value name='motion_distance'>
+			<sensor name='motion_distance' />
+		</output_value>
+
+
+		<!-- ===== ==================================== -->
+		<!-- TILT ==================================== -->
+		<!-- ===== ==================================== -->
+		
+
+		<output_value name='tilt_tilt'>
+			<sensor name='tilt_tilt' />
+		</output_value>
+
+
+		<!-- ===== ==================================== -->
+		<!-- RGB ==================================== -->
+		<!-- ===== ==================================== -->
+		<input_value name='color'>
+			<variable name='color' />
+		</input_value>
+
+        <!-- ===== ==================================== -->
+        <!-- DEVICE ==================================== -->
+        <!-- ===== ==================================== -->
+
+		<output name='button_pressed'>
+			<broadcast name='button_pressed' />
+		</output>
+		<output name='button_released'>
+			<broadcast name='button_released' />
+		</output>
+
+		<output name='low_voltage_alert'>
+			<broadcast name='notify_low_voltage_alert' />
+		</output>
+
+		<output name='high_current_alert'>
+			<broadcast name='notify_high_current_alert' />
+		</output>
+
+
+		<!-- discover option, either by 'name' (needs root permission) -->
+		<!-- or connect by 'address' -->
+		<parameter name='btle.policy' value='name' />
+
+		<parameter name='btle.name' value='LPF2 Smart Hub 2 I/O' />
+		<parameter name='btle.address' value='a0:e6:f8:6d:0e:67' />
+
+		<parameter name='mode.strict' value='false' />
+
+	</adapter>
+
+</config>

@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mcp23s17="mcp23s17.xsd" xsi:noNamespaceSchemaLocation="config.xsd"
+	xsi:schemaLocation="mcp23s17 mcp23s17.xsd ">
+    <!-- 
+    # =============================================================================================
+    # Copyright (C) 2016  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # =============================================================================================
+        -->
+
+	<description>
+		Arduino UNO with custom program used as PORT and Analog expander. 
+		Needs arduino code arduino/arduinoUno/arduinoUno.ino in arduino UNO.
+    </description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.arduino.UNO_Adapter' name='UNO'>
+		<!-- Sample arduino communication. Needs arduino sketch programmed in arduino. -->
+
+		<!-- input and output methods in python are dynamically generated like 
+		   - inputD4 for io@dir=out     [0..1] 
+		   - servoD6 for io@dir=servo   [0..180] 
+		   - pwmD6   for io@dir=pwm   	[0..255] 
+		   - outputD3 for io@dir=in     [0..1] -->
+
+		<!-- digital input values are inputs for the adapter (but outputs for arduino) -->
+
+		<input_value name='inputD4'>
+			<variable name='redLED' />
+		</input_value>
+
+		<input_value name='inputD7'>
+			<variable name='buttonLED' />
+		</input_value>
+
+		<input_value name='pwmD5'>
+			<variable name='greenLED_PWM' />
+		</input_value>
+
+		<input_value name='servoD6'>
+			<variable name='servoD6' />
+		</input_value>
+		
+		<output_value name='outputD3'>
+			<sensor name='button_3' />
+		</output_value>
+
+		<!-- output_value methods in python are dynamically generated like outputADA0 for analog@dir=in -->
+		<!-- AD-Values are outputs for the adapter (but inputs for arduino) -->
+
+		<output_value name='outputA0'>
+			<sensor name='potentiometer_0' />
+		</output_value>
+
+		<!-- The 'command' method is only used to low-level debug the arduino connection; this is not needed in usual scenario. 
+		
+		    <input_value name='command'>
+		       <variable name='command' /> 
+		    </input_value> 
+		-->
+
+		<!-- ==================================================== -->
+		<!-- on windows, use COMn, e.g. COM6 -->
+		<!-- on raspberry, use /dev/ttyN, e.g. /dev/ttyUSB0 -->
+
+		<!-- <parameter name='serial.device' value='COM19' /> -->
+		<parameter name='serial.device' value='/dev/ttyUSB0' />
+
+		<parameter name='serial.baud' value='115200' />
+
+		<!-- ==================================================== -->
+		<!-- this is the setup for an UNO arduino -->
+
+		<!-- digital io lines -->
+		<!-- @dir = void, pwm, in, out, servo -->
+		<!-- @pullup= on, use this on inputs.  -->
+
+		<!-- do not use D0, D1 (serial lines) -->
+
+		<io id='D0' dir='void' />
+		<io id='D1' dir='void' />
+
+		<!-- 3,5,6,10,11 may be pwm -->
+		<io id='D2' dir='out' />
+		<io id='D3' dir='in' pullup='on' />
+
+		<io id='D4' dir='out' />
+		<io id='D5' dir='pwm' />
+
+		<io id='D6' dir='servo' />
+		<io id='D7' dir='out' />
+
+		<io id='D8' dir='in' pullup='on' />
+		<io id='D9' dir='in' pullup='on' />
+		<io id='D10' dir='in' pullup='on' />
+
+		<io id='D11' dir='void' />
+
+		<io id='D12' dir='in' pullup='on' />
+
+		<!-- do not use D13 (onboard LED) -->
+
+		<io id='D13' dir='void' />
+
+		<!-- ==================================================== -->
+		<!-- analog io lines -->
+		<!-- @dir = void line not used -->
+		<!-- @dir = in, out line used as digital line, also in combination with pullup -->
+		<!-- @dir = analog_in line used as analog input line -->
+
+		<analog id='A0' dir='analog_in' />
+		<analog id='A1' dir='void' />
+		<analog id='A2' dir='void' />
+		<analog id='A3' dir='void' />
+		<analog id='A4' dir='void' />
+		<analog id='A5' dir='void' />
+
+	</adapter>
+
+</config>

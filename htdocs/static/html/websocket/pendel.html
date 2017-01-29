@@ -1,0 +1,123 @@
+<html>
+
+  <!-- ########################################################################
+  
+       Code nach einer Idee von heise verlag, ct, 7.3.2015
+  
+       ########################################################################
+  -->
+  
+<title>pendel</title>
+
+<body>
+  <div  style="position:relative; width:400px; height:80px;" >
+      <div id="xPos" style="width:400px; height:20px;">xPos</div>
+      <div id="yPos" style="width:400px; height:20px;">yPos</div>
+      <div id="zPos" style="width:400px; height:20px;">zPos</div>
+      
+      <div id="status" style="width:400px; height:20px;">status</div>
+  </div>
+
+  <div id="feld" style="position:relative; width:300px; height:300px;background:lightgrey">
+    
+  <div id="pendel" style="position:absolute; width:20px; height:20px;background:red; border-radius:100%"></div>
+      
+
+  <script type="text/javascript">
+   "use strict";
+   
+    var feld = document.getElementById('feld');
+    var pendel = document.getElementById('pendel');
+
+    var maxW = feld.clientWidth - pendel.clientWidth;
+    var maxH = feld.clientHeight - pendel.clientHeight;
+
+
+
+    var addr = "ws://" + window.location.hostname + ":" + window.location.port + "/adapter/pendel";
+    
+    
+    console.log(addr);
+    document.getElementById("status").innerHTML = addr;
+    var websocket = new WebSocket( addr );
+   
+   websocket.onmessage = function(e){
+        var server_message = e.data;
+        console.log(server_message);
+        
+        
+   }
+   
+   websocket.onopen = function(){
+       console.log('Connection open!');
+       document.getElementById("pendel").style.background = 'green';
+       document.getElementById("status").innerHTML = 'connected !';
+   }
+   
+   websocket.onclose = function(){
+       console.log('Connection closed');
+       document.getElementById("pendel").style.background = 'red';
+       document.getElementById("status").innerHTML = 'disconnected';
+   }
+    
+    var last_x = '';
+    var last_y = '';
+    var last_event = false;
+    
+    function handleOrientation(event) {
+    
+        var x = event.beta%90;
+        var y = event.gamma;
+        var z = event.alpha;
+
+        x += 90;
+        y += 90;
+        
+        document.getElementById("xPos").innerHTML = Math.round(x);
+        document.getElementById("yPos").innerHTML = Math.round(y);
+        document.getElementById("zPos").innerHTML = Math.round(z);
+
+        var pendel = document.getElementById("pendel");
+
+        pendel.style.left = (maxW*y/180 - pendel.clientWidth/2) + "px";
+        pendel.style.top  = (maxH*x/180 - pendel.clientHeight/2) + "px";
+        
+      
+        var round_x = round(x);
+        var round_y = round(y);
+      
+        if ( ( round_x != last_x ) || ( round_y != last_y )){ 
+            last_x = round_x;
+            last_y = round_y;
+          
+            try {
+                websocket.send(JSON.stringify( { x:last_x, y:last_y }));
+            }
+            catch(err) {
+                // console.log( err.message );
+            }
+        
+        }
+    }
+    function onClick() {
+              try {
+                websocket.send( JSON.stringify( { click:1 } ) );
+            }
+            catch(err) {
+                // console.log( err.message );
+            }
+    }
+    
+    function round(val){
+        val *= 2;
+        val = Math.round(val);
+        val /=2;
+        return val;
+    }
+    
+    window.addEventListener('deviceorientation', handleOrientation);
+    document.getElementById("feld").addEventListener("click", onClick);
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="config.xsd" >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2015  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <description>Connect Picoboard.
+                If you need more than one picoboard, then
+                - duplicate the adapter section.
+                - rename adapter/@name from 'picoboard' to 'picoboard_0', 'picoboard_1' (or to any unique name you like)
+                - rename the adapter/output_value/sensor/@name values to unique names to make these separate for each adapter.
+                  e.g. adapter/output_value/sensor[@name='slider'] [1] /@name to  slider_0
+                       adapter/output_value/sensor[@name='slider'] [2] /@name to  slider_1
+                 - rename parameter/ @name='serial.device' to match each picoboard, most probably /dev/ttyUSB0, /dev/ttyUSB1
+                </description>
+
+    <!-- =========================================================================== -->
+    <adapter class='adapter.serialAdapter.PicoBoard_Adapter'  name='picoboard'>
+        <description>ScratchBoard, picoboard adapter</description>
+        
+        <output_value name='slider'>
+            <sensor name='slider'/>
+        </output_value>
+        
+        <output_value name='light'>
+            <sensor name='light'/>
+        </output_value>
+        
+        <output_value name='sound'>
+            <sensor name='sound'/>
+        </output_value>
+        
+        <output_value name='button'>
+            <sensor name='button'/>
+        </output_value>
+        
+        <output_value name='sensorA'>
+            <sensor name='resistance-A'/>
+        </output_value>
+        
+        <output_value name='sensorB'>
+            <sensor name='resistance-B'/>
+        </output_value>
+        
+        <output_value name='sensorC'>
+            <sensor name='resistance-C'/>
+        </output_value>
+        
+        <output_value name='sensorD'>
+            <sensor name='resistance-D'/>
+        </output_value>
+        
+        <parameter name='serial.device' value='/dev/ttyUSB0' />
+        <parameter name='serial.baud' value='38400' />
+
+        <parameter name='picoBoard.raw' value='false' />
+       
+    </adapter>
+
+</config>

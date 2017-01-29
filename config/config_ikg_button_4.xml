@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>
+		Arbeitskreis Physical Computing am IKG.
+		Einlesen der Buttons von der Adapterplatine.
+		Output events are 's0_pressed', 's1_pressed', 's2_pressed', 's3_pressed'.
+		Output events are 's0_released', 's1_released', 's2_released', 's3_released' for scratch.
+
+		Jumper: 
+			gesetzt:
+			   in.0 bis in.3 
+            offen:
+			   out.0 bis out.7
+               out2.0 bis out2.7 
+    </description>
+    
+	<!-- =========================================================================== -->
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s0'>
+		<!-- no description, urgg -->
+		<gpio port='GPIO27'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'/>
+		</gpio>
+		
+		<output name='button_pressed'>
+			<broadcast name='s0_high'/>
+		</output>
+		<output name='button_released'>
+			<broadcast name='s0_low'/>
+		</output>
+		
+		<parameter name='poll.interval' value='0.025' />
+		<parameter name='value.inverse' value='true' />
+
+	</adapter>
+	<adapter class='adapter.gpio.GpioOutput'  name='led0'>
+        <description>LED0</description>
+
+        <gpio port='GPIO17'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <input name='low'>
+            <broadcast name='s1_low'/>
+        </input>
+        <input name='high'>
+            <broadcast name='s1_high'/>
+        </input>
+    </adapter>
+	
+
+</config>

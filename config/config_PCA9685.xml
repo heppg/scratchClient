@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="config.xsd">
+	<!-- # =========================================================================== # Copyright (C) 2015 Gerhard Hepp # # This program is free software; you can 
+		redistribute it and/or modify it under the terms of # the GNU General Public License as published by the Free Software Foundation; either version 2 # of the License, 
+		or (at your option) any later version. # # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; # without even the implied warranty 
+		of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. # See the GNU General Public License for more details. # # You should have received a copy of the GNU General 
+		Public License along with this program; if # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, # MA 02110, USA # =========================================================================== -->
+
+	<description>
+		PCA9685-Adapter
+		
+    </description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.i2cAdapter.PWM_PCA9685' name='16-channel PWM'>
+		<description>DEMO for the PCA adapter.</description>
+
+
+		<!-- the scratch variable names are simply the method names here. Could be more useful... -->
+        <input_value name='channel_0'>
+            <variable name='channel_0' />
+        </input_value>
+        
+        <input_value name='channel_1'>
+            <variable name='channel_1' />
+        </input_value>
+        
+        <input_value name='channel_2'>
+            <variable name='channel_2' />
+        </input_value>
+        
+        <input_value name='channel_3'>
+            <variable name='channel_3' />
+        </input_value>
+        
+        <input_value name='channel_4'>
+            <variable name='channel_4' />
+        </input_value>
+        
+        <input_value name='channel_5'>
+            <variable name='channel_5' />
+        </input_value>
+        
+        <input_value name='channel_6'>
+            <variable name='channel_6' />
+        </input_value>
+        
+        <input_value name='channel_7'>
+            <variable name='channel_7' />
+        </input_value>
+        
+        <input_value name='channel_8'>
+            <variable name='channel_8' />
+        </input_value>
+        
+        <input_value name='channel_9'>
+            <variable name='channel_9' />
+        </input_value>
+        
+        <input_value name='channel_10'>
+            <variable name='channel_10' />
+        </input_value>
+        
+        <input_value name='channel_11'>
+            <variable name='channel_11' />
+        </input_value>
+
+        <input_value name='servo_0'>
+            <variable name='servo_0' />
+        </input_value>
+        
+        <input_value name='servo_1'>
+            <variable name='servo_1' />
+        </input_value>
+        
+        <input_value name='servo_2'>
+            <variable name='servo_2' />
+        </input_value>
+        
+        <input_value name='servo_3'>
+            <variable name='servo_3' />
+        </input_value>
+        
+        <input_value name='servo_4'>
+            <variable name='servo_4' />
+        </input_value>
+        
+        <input_value name='servo_5'>
+            <variable name='servo_5' />
+        </input_value>
+        
+        <input_value name='servo_6'>
+            <variable name='servo_6' />
+        </input_value>
+        
+        <input_value name='servo_7'>
+            <variable name='servo_7' />
+        </input_value>
+        
+        <input_value name='servo_8'>
+            <variable name='servo_8' />
+        </input_value>
+        
+        <input_value name='servo_9'>
+            <variable name='servo_9' />
+        </input_value>
+        
+        <input_value name='servo_10'>
+            <variable name='servo_10' />
+        </input_value>
+        
+        <input_value name='servo_11'>
+            <variable name='servo_11' />
+        </input_value>
+
+        <!-- frequency 50Hz is used for servo  -->
+        <!-- frequency in range 1526 Hz to 24 Hz  -->
+        
+		<parameter name='frequency' value='50' />
+        
+        <!-- bus is '1' for RPi Release 2 -->
+        <parameter name='i2c.bus' value='1' />
+        
+        <!-- Depending on address select, the bus address is 
+             '0x40' for all address lines low. 
+             -->
+        <parameter name='i2c.address' value='0x40' />
+        
+	</adapter>
+
+</config>

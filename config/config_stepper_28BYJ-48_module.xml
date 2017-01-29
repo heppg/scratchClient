@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="config.xsd">
+	<!-- # =========================================================================== # Copyright (C) 2013 Gerhard Hepp # # This program is free software; you can 
+		redistribute it and/or modify it under the terms of # the GNU General Public License as published by the Free Software Foundation; either version 2 # of the License, 
+		or (at your option) any later version. # # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; # without even the implied warranty 
+		of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. # See the GNU General Public License for more details. # # You should have received a copy of the GNU General 
+		Public License along with this program; if # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, # MA 02110, USA # =========================================================================== -->
+
+	<description>
+	    Stepper configuration. Unipolar Stepper, connected with a ULN2803 darlington driver.
+	    Switch input on IKG.IO.4 (microswitch for position detect, inverted)
+	</description>
+
+	<!-- =========================================================================== -->
+
+	<adapter class='adapter.stepper.UnipolarStepperModule' name='stepper'>
+
+		<description>stepper control for unipolar stepper
+		
+		Speed: 0.001 .. time in sec per step
+		position: 4096 for 360 degree (4075,772 exact)
+		Blau Motor IO.3 (Power)
+		...
+        Orange Motor IO.0 (Power)
+        
+		
+		</description>
+
+		<gpio port='IKG.IO.0' alias='br0.0'>
+			<default dir='OUT' pull='PUD_OFF' default='low' />
+			<active dir='OUT' pull='PUD_OFF' />
+		</gpio>
+		<gpio port='IKG.IO.1' alias='br0.1'>
+			<default dir='OUT' pull='PUD_OFF' default='low' />
+			<active dir='OUT' pull='PUD_OFF' />
+		</gpio>
+
+		<gpio port='IKG.IO.2' alias='br1.0'>
+			<default dir='OUT' pull='PUD_OFF' default='low' />
+			<active dir='OUT' pull='PUD_OFF' />
+		</gpio>
+        <gpio port='IKG.IO.3' alias='br1.1'>
+            <default dir='OUT' pull='PUD_OFF' default='low' />
+            <active dir='OUT' pull='PUD_OFF' />
+        </gpio>
+		
+		<input name='reset_8'>
+			<broadcast name='reset_8' />
+		</input>
+
+		<input name='reset_4'>
+			<broadcast name='reset_4' />
+		</input>
+		<input_value name='speed'>
+			<variable name='speed' />
+		</input_value>
+
+		<input_value name='target'>
+            <variable name='target' />
+        </input_value>
+        
+        <output name='complete'>
+            <broadcast name='position_reached' />
+        </output>
+	</adapter>
+    <!-- =========================================================================== -->
+    <adapter class='adapter.gpio.GpioInput' name='microschalter'>
+        <!-- no description, urgg -->
+        <gpio port='IKG.IO.4'>
+            <default dir='IN' pull='PUD_UP'  />
+            <active dir='IN' pull='PUD_UP'/>
+        </gpio>
+        <output_value name='button'>
+            <sensor name='microschalter'/>
+        </output_value>
+        <parameter name='poll.interval' value='0.05' />
+        <parameter name='value.inverse' value='true' />
+    </adapter>
+
+   <!-- =========================================================================== -->
+ 	<adapter class='adapter.gpio.GpioStateOutput' name='state'>
+		<description>State display on IKG.IO.9</description>
+
+		<gpio port='IKG.IO.9' alias='state'>
+			<default dir='OUT' default='low' />
+			<active dir='OUT' default='low' />
+		</gpio>
+	</adapter>
+
+</config>

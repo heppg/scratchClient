@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema targetNamespace="mcp23s17.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:mcp23s17="mcp23s17.xsd">
+
+	<xs:annotation>
+		<xs:documentation>Elements for MCP23S17-Device</xs:documentation>
+	</xs:annotation>
+
+	<xs:simpleType name="idType" xmlns="mcp23s17">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="GPA0" />
+			<xs:enumeration value="GPA1" />
+			<xs:enumeration value="GPA2" />
+			<xs:enumeration value="GPA3" />
+			<xs:enumeration value="GPA4" />
+			<xs:enumeration value="GPA5" />
+			<xs:enumeration value="GPA6" />
+			<xs:enumeration value="GPA7" />
+
+			<xs:enumeration value="GPB0" />
+			<xs:enumeration value="GPB1" />
+			<xs:enumeration value="GPB2" />
+			<xs:enumeration value="GPB3" />
+			<xs:enumeration value="GPB4" />
+			<xs:enumeration value="GPB5" />
+			<xs:enumeration value="GPB6" />
+			<xs:enumeration value="GPB7" />
+		</xs:restriction>
+	</xs:simpleType>
+
+    <xs:simpleType name="dirType" xmlns="mcp23s17">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="in" />
+            <xs:enumeration value="out" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="pullupType" xmlns="mcp23s17">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="none" />
+            <xs:enumeration value="weak" />
+        </xs:restriction>
+    </xs:simpleType>
+
+	
+		<xs:complexType name="io_type"  xmlns="mcp23s17" >
+			<xs:attribute name="id" type="mcp23s17:idType"></xs:attribute>
+            <xs:attribute name="dir" type="mcp23s17:dirType"></xs:attribute>
+            <xs:attribute name="pullup" type="mcp23s17:pullupType"></xs:attribute>
+		</xs:complexType>
+	
+</xs:schema>

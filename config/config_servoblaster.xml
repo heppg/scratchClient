@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2015  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>
+		Sample implementation for connecting to servoblaster.
+		Start servoblaster first !
+    </description>
+    
+	<!-- =========================================================================== -->
+	<adapter class='adapter.servoblaster.ServoBlaster'  name='servoblaster'>
+		<description>servoblaster for 8 channels. See servoblaster doku for 
+		assignment of channel index numbers to GPIO pins.</description>
+
+		
+		<!--  looks strange, but could do some renaming for scratch variables here  -->
+        <input_value name= 'servo_0'>
+            <variable name='servo_0'/>
+        </input_value>
+        <input_value name= 'servo_1'>
+            <variable name='servo_1'/>
+        </input_value>
+        <input_value name= 'servo_2'>
+            <variable name='servo_2'/>
+        </input_value>
+        <input_value name= 'servo_3'>
+            <variable name='servo_3'/>
+        </input_value>
+        <input_value name= 'servo_4'>
+            <variable name='servo_4'/>
+        </input_value>
+        <input_value name= 'servo_5'>
+            <variable name='servo_5'/>
+        </input_value>
+        <input_value name= 'servo_6'>
+            <variable name='servo_6'/>
+        </input_value>
+        <input_value name= 'servo_7'>
+            <variable name='servo_7'/>
+        </input_value>
+	</adapter>
+
+</config>

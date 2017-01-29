@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2015  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>
+		Controlling a blink-device https://blink1.thingm.com/
+    </description>
+    
+	<!-- =========================================================================== -->
+	<adapter class='adapter.usbAdapter.Blink_Adapter'  name='blink_1'>
+		<description></description>
+
+		<!--  led_0 is 'all led' -->
+        <input_value name='led_0'>
+            <variable name='led_all'/>
+            <variable name='led_0'/>
+        </input_value>
+
+        <input_value name='led_1'>
+            <variable name='led_1'/>
+        </input_value>
+        
+        <input_value name='led_2'>
+            <variable name='led_2'/>
+        </input_value>
+        
+	</adapter>
+
+</config>

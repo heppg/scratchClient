@@ -1,0 +1,74 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mcp23s17="mcp23s17.xsd" xsi:noNamespaceSchemaLocation="config.xsd"
+	xsi:schemaLocation="mcp23s17 mcp23s17.xsd "
+>
+
+	<!-- 
+    # =============================================================================================
+    # Copyright (C) 2016  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # =============================================================================================
+		-->
+
+	<description>
+		Arduino UNO with custom program to control LEGO Powerfunctions. 
+		Needs arduino code arduino/power_functions/power_functions.ino in arduino UNO.
+    </description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.arduino.UNO_POWERFUNCTIONS_Adapter' name='UNO'>
+		<!--  Sample arduino communication. Needs arduino sketch programmed in arduino. -->
+
+       
+        <input_value name='CHANNEL_1_A'>
+            <variable name='c_1_A' />
+        </input_value>
+       <input_value name='CHANNEL_1_B'>
+            <variable name='c_1_B' />
+        </input_value>
+       <input_value name='CHANNEL_2_A'>
+            <variable name='c_2_A' />
+        </input_value>
+       <input_value name='CHANNEL_2_B'>
+            <variable name='c_2_B' />
+        </input_value>
+       <input_value name='CHANNEL_3_A'>
+            <variable name='c_3_A' />
+        </input_value>
+       <input_value name='CHANNEL_3_B'>
+            <variable name='c_3_B' />
+        </input_value>
+       <input_value name='CHANNEL_4_A'>
+            <variable name='c_4_A' />
+        </input_value>
+       <input_value name='CHANNEL_4_B'>
+            <variable name='c_4_B' />
+        </input_value>
+        
+        
+        <!-- ==================================================== -->
+        <!--  on windows, use COMn, e.g. COM6  -->
+        <!--  on raspberry, use /dev/ttyn, e.g. /dev/ttyAMA0  -->
+        
+        <!-- 
+            <parameter name='serial.device' value='/dev/ttyUSB0' />
+        -->
+             <parameter name='serial.device' value='COM6' />
+         
+        <parameter name='serial.baud' value='115200' />
+
+
+	</adapter>
+
+</config>

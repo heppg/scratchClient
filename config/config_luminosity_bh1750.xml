@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="config.xsd" >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2014  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <description>Luminosity-Values from BH1750.
+        Output values are 0..65536/1.2 [lx].
+        
+        Connected to I2C-Bus.
+        </description>
+        
+        
+    <!-- =========================================================================== -->
+    <adapter class='adapter.i2cAdapter.Luminosity_BH1750_Input'  name='luminosity'>
+        <description>Luminosity-Value from BH1750</description>
+        
+        <output_value name='luminosity'>
+            <sensor name='luminosity'/>
+        </output_value>
+        
+        <parameter name='poll.interval' value='0.5' />
+       
+        <!-- bus is '1' for RPi Release 2 -->
+        <parameter name='i2c.bus' value='1' />
+        
+        <!-- Depending on address select, the bus address is 
+             '0x23' for BH1750 
+             '0x5c' for BH1750 
+             -->
+        <parameter name='i2c.address' value='0x23' />
+    </adapter>
+
+</config>

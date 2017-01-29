@@ -1,0 +1,27 @@
+<!-- main start  -->
+<%include file="../template/header.html" />
+
+		<h2>ScratchClient</h2>
+		<p>
+		<a href ='/config'>Konfigurationsdatei</a>  <br/>
+		<a href ='/adapters'>Adapter</a>   <br/>
+		</p>
+		
+		<p>
+		 % if len(additionalpaths) > 0:
+		 
+		     <!-- injected links, controlled by an adapter -->
+		     <p>
+		         Pages related to adapters: 
+		     </p>
+		     <p>
+        	 % for row in additionalpaths:
+        	  <a href ='/files/html/${ row['path'] }'>${ row['name'] }</a>  ${ row['comment'] } </br>
+             % endfor
+             </p>
+             
+         % endif
+        </p>
+        
+<%include file="../template/footer.html" />
+<!-- main end -->

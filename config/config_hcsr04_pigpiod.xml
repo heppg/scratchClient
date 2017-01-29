@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2015  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+	<description>
+		HC-SR04 controlled by pigpiod
+		pigpiod must be started; the code does not start it automatically 
+	</description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.pigpiod.HC_SR04_Adapter'  name='echo-time'>
+		<description>HC-SR04 controller</description>
+
+        <!--  gpio are not used directly. Set 'dir' to 'RESERVED'. -->
+        
+        <gpio port='GPIO18'   alias='trigger'>
+            <default dir='RESERVED' />
+            <active dir='RESERVED' />
+        </gpio>
+        <gpio port='GPIO23' alias='echo'>
+            <default dir='RESERVED' />
+            <active dir='RESERVED' />
+        </gpio>
+
+        <output_value name='time'>
+            <sensor name='time'/>
+        </output_value>
+
+        <output_value name='error'>
+            <sensor name='error'/>
+        </output_value>
+
+         <!--  minimal value 0.02 -->
+		 <parameter name='poll.interval' value='0.5' />
+	</adapter>
+</config>

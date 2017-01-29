@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+	<description>
+		IR-Distance-Sensor on ADC.0
+		Linearization based on Sharp datasheet.
+		Output values are distance in [mm].
+	</description>
+
+	<!-- =========================================================================== -->
+    <adapter class='adapter.adc.IRDistanceInput'  name='irDistanceA'>
+        <description>IR-Distance Sensor</description>
+
+        <output_value name='distance'>
+            <sensor name='distanceA'/>
+        </output_value>
+
+        <parameter name='poll.interval' value='0.066' />
+        <parameter name='spi.bus' value='0' />
+        <parameter name='spi.device' value='0' />
+        <parameter name='adc.channel' value='0' />
+        <parameter name='filter.use' value='true' />
+        <parameter name='filter.depth' value='5' />
+
+    </adapter>
+    <adapter class='adapter.adc.IRDistanceInput'  name='irDistanceB'>
+        <description>IR-Distance Sensor</description>
+
+        <output_value name='distance'>
+            <sensor name='distanceB'/>
+        </output_value>
+
+        <parameter name='poll.interval' value='0.066' />
+        <parameter name='spi.bus' value='0' />
+        <parameter name='spi.device' value='0' />
+        <parameter name='adc.channel' value='1' />
+        <parameter name='filter.use' value='true' />
+        <parameter name='filter.depth' value='5' />
+
+    </adapter>
+	<!-- =========================================================================== -->
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s0'>
+		<!-- no description, urgg -->
+		<gpio port='GPIO25'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'/>
+		</gpio>
+		
+		<output name='button_pressed'>
+			<broadcast name='s0_pressed'/>
+		</output>
+		<output name='button_released'>
+			<broadcast name='s0_released'/>
+		</output>
+		
+		<parameter name='poll.interval' value='0.075' />
+        <parameter name='value.inverse' value='true' />
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s1'>
+		<!-- no description, urgg -->
+		<gpio port='GPIO24'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'/>
+		</gpio>
+		
+		<output name='button_pressed'>
+			<broadcast name='s1_pressed'/>
+		</output>
+		<output name='button_released'>
+			<broadcast name='s1_released'/>
+		</output>
+		
+		<parameter name='poll.interval' value='0.075' />
+		      <parameter name='value.inverse' value='true' />
+
+	</adapter>
+	
+    <adapter class='adapter.gpio.GpioStateOutput'  name='state'>
+        <description>State display on IKG.IO.9</description>
+
+        <gpio port='IKG.IO.9' alias='state'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+    </adapter>
+
+</config>

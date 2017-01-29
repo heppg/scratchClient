@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mcp23s17="mcp23s17.xsd" xsi:noNamespaceSchemaLocation="config.xsd"
+	xsi:schemaLocation="mcp23s17 mcp23s17.xsd "
+>
+
+	<!-- 
+    # =============================================================================================
+    # Copyright (C) 2013  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # =============================================================================================
+		-->
+
+	<description>
+		Sample MCP23S17; this configuration is suitable to be used with PIFACE board.
+        When using piFace, then do NOT use GPIO25 (this is INTB in MCP23S17) 
+    </description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.mcp23s17.MCP23S17_Adapter' name='MCP23S17'>
+		<!-- no description, urgg -->
+
+		<!-- input_value methods in python are dynamically generated like inputGPA4 for io@dir=out -->
+
+		<input_value name='inputGPA0'>
+			<variable name='out_0' />
+			<variable name='relais_0' />
+			<variable name='all' />
+
+		</input_value>
+		<input_value name='inputGPA1'>
+			<variable name='out_1' />
+			<variable name='relais_1' />
+			<variable name='all' />
+		</input_value>
+		<input_value name='inputGPA2'>
+		
+		 
+            <variable name='out_2' />
+        	<variable name='all' />
+
+		</input_value>
+		<input_value name='inputGPA3'>
+		   
+			<variable name='out_3' />
+			<variable name='all' />
+
+		</input_value>
+
+		<input_value name='inputGPA4'>
+			<variable name='out_4' />
+			<variable name='all' />
+
+		</input_value>
+		<input_value name='inputGPA5'>
+			<variable name='out_5' />
+			<variable name='all' />
+
+		</input_value>
+		<input_value name='inputGPA6'>
+			<variable name='out_6' />
+			<variable name='all' />
+
+		</input_value>
+		<input_value name='inputGPA7'>
+			<variable name='out_7' />
+			<variable name='all' />
+
+		</input_value>
+
+		<!-- output_value methods in python are dynamically generated like outputGPB2 for io@dir=in -->
+
+		<output_value name='outputGPB0'>
+			<sensor name='in_0' />
+		</output_value>
+
+		<output_value name='outputGPB1'>
+			<sensor name='in_1' />
+		</output_value>
+
+		<output_value name='outputGPB2'>
+			<sensor name='in_2' />
+		</output_value>
+
+		<output_value name='outputGPB3'>
+			<sensor name='in_3' />
+		</output_value>
+
+		<output_value name='outputGPB4'>
+			<sensor name='in_4' />
+		</output_value>
+
+		<output_value name='outputGPB5'>
+			<sensor name='in_5' />
+		</output_value>
+
+		<output_value name='outputGPB6'>
+			<sensor name='in_6' />
+		</output_value>
+
+		<output_value name='outputGPB7'>
+			<sensor name='in_7' />
+		</output_value>
+
+		<parameter name='poll.interval' value='0.05' />
+
+		<parameter name='spi.bus' value='0' />
+		<parameter name='spi.device' value='0' />
+		<!-- slave address must match the hard wired slave address on the device -->
+		<parameter name='23s17.addr' value='0' />
+
+		<!-- this is the setup for piface -->
+		
+		<io id='GPA0' dir='out' />
+		<io id='GPA1' dir='out' />
+		<io id='GPA2' dir='out' />
+		<io id='GPA3' dir='out' />
+
+		<io id='GPA4' dir='out' />
+		<io id='GPA5' dir='out' />
+		<io id='GPA6' dir='out' />
+		<io id='GPA7' dir='out' />
+
+		<io id='GPB0' dir='in' pullup='weak' />
+		<io id='GPB1' dir='in' pullup='weak' />
+		<io id='GPB2' dir='in' pullup='weak' />
+		<io id='GPB3' dir='in' pullup='weak' />
+
+		<io id='GPB4' dir='in' pullup='weak' />
+		<io id='GPB5' dir='in' pullup='weak' />
+		<io id='GPB6' dir='in' pullup='weak' />
+		<io id='GPB7' dir='in' pullup='weak' />
+
+	</adapter>
+
+</config>

@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='utf-8' ?>
+
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>
+	temp, delete after 2015-11-22
+    </description>
+    
+	<!-- =========================================================================== -->
+
+
+
+    <adapter class='adapter.gpio.GpioOutput'  name='led0'>
+        <description>LED0</description>
+
+        <gpio port='IKG.IO.0'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <input name='low'>
+            <broadcast name='gpio18off'/>
+        </input>
+        <input name='high'>
+            <broadcast name='gpio18on'/>
+        </input>
+    </adapter>
+
+    <adapter class='adapter.gpio.GpioOutput'  name='led1'>
+        <description>LED1</description>
+
+        <gpio port='IKG.IO.1'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <input name='low'>
+            <broadcast name='gpio23off'/>
+        </input>
+        <input name='high'>
+            <broadcast name='gpio23on'/>
+        </input>
+    </adapter>
+
+    <adapter class='adapter.gpio.GpioOutput'  name='led2'>
+        <description>LED2</description>
+
+        <gpio port='IKG.IO.2'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <input name='low'>
+            <broadcast name='gpio24off'/>
+        </input>
+        <input name='high'>
+            <broadcast name='gpio24on'/>
+        </input>
+    </adapter>
+
+    <adapter class='adapter.gpio.GpioOutput'  name='led3'>
+        <description>LED2</description>
+
+        <gpio port='IKG.IO.3'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <input name='low'>
+            <broadcast name='gpio25off'/>
+        </input>
+        <input name='high'>
+            <broadcast name='gpio25on'/>
+        </input>
+    </adapter>
+
+
+</config>

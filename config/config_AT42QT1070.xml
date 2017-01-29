@@ -1,0 +1,127 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="config.xsd">
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2016  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+
+	<description>
+	    Please note: this configuration is not tested.
+	    
+		Adafruit AT42QT1070-capacitive touch sensor breakout.
+		connections are as given in https://learn.adafruit.com/assets/14961
+		The connections are
+		output_0 -- GPIO22
+        output_1 -- GPIO21
+        output_2 -- GPIO17
+        output_3 -- GPIO24
+        output_4 -- GPIO23
+        
+    </description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s0'>
+		<description>Output 0 of the breakout board</description>
+		<gpio port='GPIO22'>
+			<default dir='IN' pull='PUD_UP' />
+			<active dir='IN' pull='PUD_UP' />
+		</gpio>
+
+		<output name='button_pressed'>
+			<broadcast name='s0_pressed' />
+		</output>
+		<output name='button_released'>
+			<broadcast name='s0_released' />
+		</output>
+
+		<parameter name='poll.interval' value='0.05' />
+		<parameter name='value.inverse' value='false' />
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s1'>
+		<description>Output 1 of the breakout board</description>
+		<gpio port='GPIO21'>
+			<default dir='IN' pull='PUD_UP' />
+			<active dir='IN' pull='PUD_UP' />
+		</gpio>
+
+		<output name='button_pressed'>
+			<broadcast name='s1_pressed' />
+		</output>
+		<output name='button_released'>
+			<broadcast name='s1_released' />
+		</output>
+
+		<parameter name='poll.interval' value='0.05' />
+		<parameter name='value.inverse' value='false' />
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s2'>
+		<description>Output 2 of the breakout board</description>
+		<gpio port='GPIO17'>
+			<default dir='IN' pull='PUD_UP' />
+			<active dir='IN' pull='PUD_UP' />
+		</gpio>
+
+		<output name='button_pressed'>
+			<broadcast name='s2_pressed' />
+		</output>
+		<output name='button_released'>
+			<broadcast name='s2_released' />
+		</output>
+
+		<parameter name='poll.interval' value='0.05' />
+		<parameter name='value.inverse' value='false' />
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s3'>
+		<description>Output 3 of the breakout board</description>
+		<gpio port='GPIO24'>
+			<default dir='IN' pull='PUD_UP' />
+			<active dir='IN' pull='PUD_UP' />
+		</gpio>
+
+		<output name='button_pressed'>
+			<broadcast name='s3_pressed' />
+		</output>
+		<output name='button_released'>
+			<broadcast name='s3_released' />
+		</output>
+
+		<parameter name='poll.interval' value='0.05' />
+		<parameter name='value.inverse' value='false' />
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s4'>
+		<description>Output 4 of the breakout board</description>
+		<gpio port='GPIO23'>
+			<default dir='IN' pull='PUD_UP' />
+			<active dir='IN' pull='PUD_UP' />
+		</gpio>
+
+		<output name='button_pressed'>
+			<broadcast name='s4_pressed' />
+		</output>
+		<output name='button_released'>
+			<broadcast name='s4_released' />
+		</output>
+
+		<parameter name='poll.interval' value='0.05' />
+		<parameter name='value.inverse' value='false' />
+	</adapter>
+
+
+</config>

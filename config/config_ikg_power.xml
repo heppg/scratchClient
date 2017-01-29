@@ -1,0 +1,164 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>
+		Arbeitskreis Physical Computing am IKG.
+		Ansteuerung aller Leistungsausgänge.
+		Die Kommandos sind als 'powerN_OFF' bzw. 'powerN_ON' für scratch bezeichnet.
+		Jumper: 
+			gesetzt:
+			    out.0 bis out.7 alle gesetzt.
+			    out2.0 bis out2.7 alle gesetzt.
+            offen:
+               in.0 bis in.7 
+    </description>
+    
+	<!-- =========================================================================== -->
+	<adapter class='adapter.gpio.GpioOutput'  name='power0'>
+		<description>power0</description>
+
+		<gpio port='GPIO25'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power0_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power0_ON'/>
+		</input>
+	</adapter>
+	<adapter class='adapter.gpio.GpioOutput'  name='power1'>
+		<description>power1</description>
+
+		<gpio port='GPIO24'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power1_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power1_ON'/>
+		</input>
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioOutput'  name='power2'>
+		<description>power2</description>
+
+		<gpio port='GPIO23'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power2_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power2_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='power3'>
+		<description>power3</description>
+
+		<gpio port='GPIO18'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power3_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power3_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='power4'>
+		<description>power4</description>
+
+		<gpio port='GPIO22'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power4_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power4_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='power5'>
+		<description>power5</description>
+
+		<gpio port='GPIO27'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power5_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power5_ON'/>
+		</input>
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioOutput'  name='power6'>
+		<description>power6</description>
+
+		<gpio port='GPIO17'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power6_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power6_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='power7'>
+		<description>power7</description>
+
+		<gpio port='GPIO15'>
+			<default dir='OUT'  default='low' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='power7_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='power7_ON'/>
+		</input>
+	</adapter>
+
+    <adapter class='adapter.gpio.GpioStateOutput'  name='state'>
+        <description>State display on IKG.IO.9</description>
+
+        <gpio port='IKG.IO.9' alias='state'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+    </adapter>
+
+</config>

@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='utf-8' ?>
+
+<portMapping version='1.0'
+xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+xsi:noNamespaceSchemaLocation='portMapping.xsd' >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2013  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <port gpioNumber='0' name='GPIO00' />
+    <port gpioNumber='1' name='GPIO01' />
+    <port gpioNumber='2' name='GPIO02' />
+    <port gpioNumber='3' name='GPIO03' />
+    <port gpioNumber='4' name='GPIO04' />
+    <port gpioNumber='7' name='GPIO07' />
+    <port gpioNumber='8' name='GPIO08' />
+    <port gpioNumber='9' name='GPIO09' />
+    <port gpioNumber='10' name='GPIO10' />
+    <port gpioNumber='11' name='GPIO11' />
+    <port gpioNumber='14' name='GPIO14' />
+    <port gpioNumber='15' name='GPIO15' />
+    <port gpioNumber='17' name='GPIO17' />
+    <port gpioNumber='18' name='GPIO18' />
+    <port gpioNumber='21' name='GPIO21' />
+    <port gpioNumber='22' name='GPIO22' />
+    <port gpioNumber='23' name='GPIO23' />
+    <port gpioNumber='24' name='GPIO24' />
+    <port gpioNumber='25' name='GPIO25' />
+    <port gpioNumber='27' name='GPIO27' />
+    <port gpioNumber='28' name='GPIO28' />
+    <port gpioNumber='29' name='GPIO29' />
+    <port gpioNumber='30' name='GPIO30' />
+    <port gpioNumber='31' name='GPIO31' />
+    
+    <!--  Port names for IKG-Adapter board -->
+    <port gpioNumber='25' name='IKG.IO.0' />
+    <port gpioNumber='24' name='IKG.IO.1' />
+    <port gpioNumber='23' name='IKG.IO.2' />
+    <port gpioNumber='18' name='IKG.IO.3' />
+    <port gpioNumber='22' name='IKG.IO.4' />
+    <port gpioNumber='27' name='IKG.IO.5' />
+    <port gpioNumber='17' name='IKG.IO.6' />
+    <port gpioNumber='15' name='IKG.IO.7' />
+    <port gpioNumber='14' name='IKG.IO.8' />
+    <port gpioNumber='4' name='IKG.IO.9' />
+    
+    <!--  Port names for Raspberry Pi Pin numbers  -->
+    <port gpioNumber='0' name='P1-03V1' />
+    <port gpioNumber='2' name='P1-03V2' />
+    <port gpioNumber='1' name='P1-05V1' />
+    <port gpioNumber='3' name='P1-05V2' />
+    <port gpioNumber='4' name='P1-07' />
+    <port gpioNumber='17' name='P1-11' />
+    <port gpioNumber='21' name='P1-13V1' />
+    <port gpioNumber='27' name='P1-13V2' />
+    <port gpioNumber='22' name='P1-15' />
+    <port gpioNumber='10' name='P1-19' />
+    <port gpioNumber='9' name='P1-21' />
+    <port gpioNumber='11' name='P1-23' />
+    <port gpioNumber='14' name='P1-08' />
+    <port gpioNumber='15' name='P1-10' />
+    <port gpioNumber='18' name='P1-12' />
+    <port gpioNumber='23' name='P1-16' />
+    <port gpioNumber='24' name='P1-18' />
+    <port gpioNumber='25' name='P1-22' />
+    <port gpioNumber='8' name='P1-24' />
+    <port gpioNumber='7' name='P1-26' />
+    <port gpioNumber='28' name='P3-03' />
+    <port gpioNumber='30' name='P3-05' />
+    <port gpioNumber='29' name='P3-04' />
+    <port gpioNumber='31' name='P3-06' />
+
+</portMapping>

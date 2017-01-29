@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="config.xsd" >
+    
+
+    <description>
+      
+    </description>
+    
+    <!-- =========================================================================== -->
+    <adapter class='adapter.gpio.GpioEventInput' name='button_s0'>
+        <!-- no description, urgg -->
+        <gpio port='GPIO17'>
+            <default dir='IN' pull='PUD_UP'  />
+            <active dir='IN' pull='PUD_UP'/>
+        </gpio>
+        
+        <output name='button_pressed'>
+            <broadcast name='s0_high'/>
+        </output>
+        <output name='button_released'>
+            <broadcast name='s0_low'/>
+        </output>
+        
+        <parameter name='poll.interval' value='0.02' />
+        <parameter name='value.inverse' value='false' />
+
+    </adapter>
+    
+    <adapter class='adapter.gpio.GpioOutput'  name='led0'>
+        <description>LED0</description>
+
+        <gpio port='GPIO27'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <input name='low'>
+            <broadcast name='s1_low'/>
+        </input>
+        <input name='high'>
+            <broadcast name='s1_high'/>
+        </input>
+    </adapter>
+    
+
+</config>

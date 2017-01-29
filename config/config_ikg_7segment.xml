@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>
+		Arbeitskreis Physical Computing am IKG.
+		Ansteuerung aller Ausgaenge.
+		Die Kommandos sind als 'ledN' fuer scratch bezeichnet.
+		Jumper: 
+			gesetzt:
+			   out.0 bis out.7 alle gesetzt.
+               out2.0 bis out2.7 
+            offen:
+               in.0 bis in.7 
+    </description>
+    
+	<!-- =========================================================================== -->
+
+	<adapter class='adapter.gpio.Gpio7segment'  name='s7'>
+		<description>7 Segment driver</description>
+
+        <gpio port='IKG.IO.0' alias='a'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <gpio port='IKG.IO.1' alias='b'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <gpio port='IKG.IO.2' alias='c'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <gpio port='IKG.IO.3' alias='d'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <gpio port='IKG.IO.4' alias='e'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <gpio port='IKG.IO.5' alias='f'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <gpio port='IKG.IO.6' alias='g'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='high' />
+        </gpio>
+        
+		<input_value name='value'>
+			<variable name='siebensegment'/>
+		</input_value>
+		
+        <input_value name='seg_a'>
+            <variable name='seg_A'/>
+        </input_value>
+        <input_value name='seg_b'>
+            <variable name='seg_B'/>
+        </input_value>
+        <input_value name='seg_c'>
+            <variable name='seg_C'/>
+        </input_value>
+        <input_value name='seg_d'>
+            <variable name='seg_D'/>
+        </input_value>
+        <input_value name='seg_e'>
+            <variable name='seg_E'/>
+        </input_value>
+        <input_value name='seg_f'>
+            <variable name='seg_F'/>
+        </input_value>
+        <input_value name='seg_g'>
+            <variable name='seg_G'/>
+        </input_value>
+	</adapter>
+
+    <adapter class='adapter.gpio.GpioStateOutput'  name='state'>
+        <description>State display on IKG.IO.9</description>
+
+        <gpio port='IKG.IO.9' alias='state'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+    </adapter>
+</config>

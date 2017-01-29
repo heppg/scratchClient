@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+	<description>
+		Encoder with two photointerruptors in gl.4, gl.5 GPIO25, 24. --> position_A
+		Encoder with two photointerruptors in gl.6, gl.7 GPIO17, 15. --> position_B
+		
+		Pullup are needed, as provided on IKG-Adapter.
+		With N=6 'teeth', the resolution is 30 degree.
+
+		Jumper: 
+			gesetzt:
+               in.4 bis in.7 
+            offen:
+			   out.0 bis out.7
+               out2.0 bis out2.7 
+
+	</description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.encoder.GPIOEncoder'  name='encoder_A'>
+		<description>Drehencoder</description>
+
+		<gpio port='IKG.IO.4' alias='p0'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'   />
+		</gpio>
+		<gpio port='IKG.IO.5' alias='p1'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'   />
+		</gpio>
+
+		<output_value name='position'>
+			<sensor name='positionA'/>
+		</output_value>
+
+		<parameter name='poll.interval' value='0.005' />
+
+	</adapter>
+
+	<adapter class='adapter.encoder.GPIOEncoder'  name='encoder_B'>
+		<description>Drehencoder</description>
+
+		<gpio port='IKG.IO.6' alias='p0'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'   />
+		</gpio>
+		<gpio port='IKG.IO.7' alias='p1'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'   />
+		</gpio>
+
+		<output_value name='position'>
+			<sensor name='positionB'/>
+		</output_value>
+
+		<parameter name='poll.interval' value='0.005' />
+
+	</adapter>
+
+    <adapter class='adapter.gpio.GpioStateOutput'  name='state'>
+        <description>State display on IKG.IO.9</description>
+
+        <gpio port='IKG.IO.9' alias='state'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+    </adapter>
+
+</config>

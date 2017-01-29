@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>Stepper configuration. Bipolar Stepper, connected with a L293 quad H-bridge.
+	    
+	    </description>
+
+	<!-- =========================================================================== -->
+	
+	<adapter class='adapter.stepper.BipolarStepper' name='stepper'>
+		
+		<description>stepper control</description>
+		
+        <gpio port='IKG.IO.0' alias='br0.0'>
+            <default dir='OUT' pull='PUD_OFF'  />
+            <active dir='OUT' pull='PUD_OFF'/>
+        </gpio>
+        <gpio port='IKG.IO.1' alias='br0.1'>
+            <default dir='OUT' pull='PUD_OFF'  />
+            <active dir='OUT' pull='PUD_OFF'/>
+        </gpio>
+        
+        <gpio port='IKG.IO.2' alias='br1.0'>
+            <default dir='OUT' pull='PUD_OFF'  />
+            <active dir='OUT' pull='PUD_OFF'/>
+        </gpio>
+        <gpio port='IKG.IO.3' alias='br1.1'>
+            <default dir='OUT' pull='PUD_OFF'  />
+            <active dir='OUT' pull='PUD_OFF'/>
+        </gpio>
+
+        <gpio port='IKG.IO.4' alias='en0'>
+            <default dir='OUT' pull='PUD_OFF'  />
+            <active dir='OUT' pull='PUD_OFF' default='high' />
+        </gpio>
+        <gpio port='IKG.IO.5' alias='en1'>
+            <default dir='OUT' pull='PUD_OFF'  />
+            <active dir='OUT' pull='PUD_OFF'  default='high' />
+        </gpio>
+
+        <input name='startMotor'>
+            <broadcast name='startMotor'/>
+        </input>
+        
+        <input name='stopMotor'>
+            <broadcast name='stopMotor'/>
+        </input>
+
+        <input_value name='speed'>
+            <variable name='speed'/>
+        </input_value>
+        
+        <input_value name='target'>
+            <variable name='target'/>
+        </input_value>
+
+	</adapter>
+
+</config>

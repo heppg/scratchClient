@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="config.xsd">
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2015  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+	<description>Executing os-system commands.</description>
+
+	<!-- =========================================================================== -->
+
+	<adapter class='adapter.linux.Linux_ASR_Adapter' name='sampleA'>
+		<description>linux speech recoginition with pocketsphinx</description>
+
+		<input name='execute'>
+			<broadcast name='execute' />
+		</input>
+
+		<output name='complete'>
+			<broadcast name='finished' />
+		</output>
+
+		<input name='textAcknowledge'>
+			<broadcast name='ack' />
+		</input>
+
+		<output name='textAvailable'>
+			<broadcast name='listen' />
+		</output>
+
+		<output_value name='text'>
+			<sensor name='text' />
+		</output_value>
+
+		<output_value name='status'>
+			<sensor name='status' />
+		</output_value>
+
+		<!-- ${sound.dir} is filled from 'sound.dir'; ${sound.file} is filled from 'sound.file' -->
+<!--         <parameter name='command.line'
+            value='pocketsphinx_continuous -hmm /usr/local/share/pocketsphinx/model/en-us/en-us -lm 0609.lm -dict 0609.dic -samprate 16000/8000/48000 -logfn /dev/null -infile ${sound.dir}/${sound.file}' />
+             -->
+<!--              
+        <parameter name='command.line'
+            value='pocketsphinx_continuous -hmm /usr/local/share/pocketsphinx/model/en-us/en-us -lm 5204.lm -dict 5204.dic -samprate 16000/8000/48000 -logfn /dev/null -infile ${sound.dir}/${sound.file}' />
+                <parameter name='command.line'
+            value='pocketsphinx_continuous -hmm /usr/local/share/pocketsphinx/model/en-us/en-us -lm 5204.lm -dict 5204.dic -samprate 16000/8000/48000 -logfn /dev/null -infile ${sound.dir}/${sound.file}' />
+ -->
+         <parameter name='command.line'
+            value=' pocketsphinx_continuous -adcdev sysdefault:CARD=Device -hmm /home/pi/training/en-us-adapt -lm 1695.lm -dict 1695.dic -samprate 16000 -logfn /dev/null -inmic yes' />
+        
+        <parameter name='sound.dir' value='/home/pi' />
+		<parameter name='sound.file' value='r.wav' />
+		<!--
+			Text received is queued in the adapter. When queue data are getting too old, these are discarded.
+			Timeout is configured here in sec.
+			The timeout is used for scenario, where the acknowledge protocol is not yet implemented and
+			data are accumulated in internal queue.  
+	    -->
+		<parameter name='timeout' value='60' />
+	</adapter>
+
+
+</config>

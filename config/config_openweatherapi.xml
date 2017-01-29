@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' 
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+        xsi:noNamespaceSchemaLocation="config.xsd">
+       <!--
+    # ===========================================================================
+    # Copyright (C) 2016  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    
+    <description>Openweather-API interface.</description>
+
+    <!-- =========================================================================== -->
+
+    <adapter class='adapter.openweathermapAdapter.Openweathermap_Adapter' name='openweathermap'>
+        <description>Retrieve openweathermap data</description>
+
+        
+        <output_value name='location'>
+            <sensor name='owm.location' />
+        </output_value>
+        
+       <output_value name='clouds'>
+            <sensor name='owm.clouds' />
+        </output_value>
+        
+        <output_value name='rainfall'>
+            <sensor name='owm.rainfall' />
+        </output_value>
+        
+        <output_value name='snowfall'>
+            <sensor name='owm.snowfall' />
+        </output_value>
+        
+        <output_value name='temperature'>
+            <sensor name='owm.temperature' />
+        </output_value>
+        
+        <output_value name='humidity'>
+            <sensor name='owm.humidity' />
+        </output_value>
+        
+        <output_value name='pressure'>
+            <sensor name='owm.pressure' />
+        </output_value>
+        
+        <output_value name='wind_speed'>
+            <sensor name='owm.wind_speed' />
+        </output_value>
+        
+        <output_value name='wind_direction'>
+            <sensor name='owm.wind_direction' />
+        </output_value>
+
+        <parameter name='openweather.api_key' value='b0d1...' />
+        
+        <!--  pollrate in seconds
+             The api allows pollrate depending on license status. 
+             The free API allows pollrates of 10min == 600  -->
+             
+        <parameter name='pollrate' value='600' />
+        
+        <parameter name='location' value='Leinfelden-Echterdingen' />
+        
+    </adapter>
+
+</config>

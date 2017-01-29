@@ -1,0 +1,209 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="config.xsd">
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2016  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+	<description>
+		WEDO 2 by bluetooth
+		This file contains 'strict'-definitions.
+		
+		
+	</description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.wedo2Adapter.Wedo2Adapter' name='wedo2'>
+		<description>WEDO 2 by bluetooth</description>
+
+		<!-- ===== ==================================== -->
+		<!-- MOTOR ==================================== -->
+
+
+       <input_value name='motor1'>
+            <variable name='motor1' />
+        </input_value>
+		
+		<input name='motor1_run'>
+			<broadcast name='motor1_run' />
+		</input>
+		<input name='motor1_brake'>
+			<broadcast name='motor1_brake' />
+		</input>
+		<input name='motor1_drift'>
+			<broadcast name='motor1_drift' />
+		</input>
+
+
+		<input_value name='motor2'>
+			<variable name='motor2' />
+		</input_value>
+		
+		<input name='motor2_run'>
+			<broadcast name='motor2_run' />
+		</input>
+		<input name='motor2_brake'>
+			<broadcast name='motor2_brake' />
+		</input>
+		<input name='motor2_drift'>
+			<broadcast name='motor2_drift' />
+		</input>
+
+		<!-- ===== ==================================== -->
+		<!-- MOTION ==================================== -->
+		<!-- ===== ==================================== -->
+
+		<input_value name='motion1_mode'>
+			<variable name='motion1_mode' />
+		</input_value>
+		<output_value name='motion1_count'>
+			<sensor name='motion1_count' />
+		</output_value>
+		<output_value name='motion1_distance'>
+			<sensor name='motion1_distance' />
+		</output_value>
+
+		<input_value name='motion2_mode'>
+			<variable name='motion2_mode' />
+		</input_value>
+		<output_value name='motion2_count'>
+			<sensor name='motion2_count' />
+		</output_value>
+		<output_value name='motion2_distance'>
+			<sensor name='motion2_distance' />
+		</output_value>
+
+		<!-- ===== ==================================== -->
+		<!-- TILT ==================================== -->
+		<!-- ===== ==================================== -->
+		
+        <input name='tilt1_reset'>
+            <broadcast name='tilt1_reset' />
+        </input>
+        <input name='tilt2_reset'>
+            <broadcast name='tilt2_reset' />
+        </input>
+ 
+		
+		<input_value name='tilt1_mode'>
+			<variable name='tilt1_mode' />
+		</input_value>
+
+		<output_value name='tilt1_tilt'>
+			<sensor name='tilt1_tilt' />
+		</output_value>
+		<output_value name='tilt1_angle_1'>
+			<sensor name='tilt1_angle_1' />
+		</output_value>
+		<output_value name='tilt1_angle_2'>
+			<sensor name='tilt1_angle_2' />
+		</output_value>
+		<output_value name='tilt1_crash_1'>
+			<sensor name='tilt1_crash_1' />
+		</output_value>
+		<output_value name='tilt1_crash_2'>
+			<sensor name='tilt1_crash_2' />
+		</output_value>
+		<output_value name='tilt1_crash_3'>
+			<sensor name='tilt1_crash_3' />
+		</output_value>
+
+
+		<input_value name='tilt2_mode'>
+			<variable name='tilt2_mode' />
+		</input_value>
+
+		<output_value name='tilt2_tilt'>
+			<sensor name='tilt2_tilt' />
+		</output_value>
+		<output_value name='tilt2_angle_1'>
+			<sensor name='tilt2_angle_1' />
+		</output_value>
+		<output_value name='tilt2_angle_2'>
+			<sensor name='tilt2_angle_2' />
+		</output_value>
+		<output_value name='tilt2_crash_1'>
+			<sensor name='tilt2_crash_1' />
+		</output_value>
+		<output_value name='tilt2_crash_2'>
+			<sensor name='tilt2_crash_2' />
+		</output_value>
+		<output_value name='tilt2_crash_3'>
+			<sensor name='tilt2_crash_3' />
+		</output_value>
+
+
+		<!-- ===== ==================================== -->
+		<!-- RGB ==================================== -->
+		<!-- ===== ==================================== -->
+		<input_value name='color'>
+			<variable name='color' />
+		</input_value>
+
+		<!-- ===== ==================================== -->
+		<!-- VOLTAGE ==================================== -->
+		<!-- ===== ==================================== -->
+		<output_value name='voltage'>
+			<sensor name='voltage' />
+		</output_value>
+
+		<!-- ===== ==================================== -->
+		<!-- CURRENT ==================================== -->
+		<!-- ===== ==================================== -->
+		<output_value name='current'>
+			<sensor name='current' />
+		</output_value>
+
+
+        <!-- ===== ==================================== -->
+        <!-- DEVICE ==================================== -->
+        <!-- ===== ==================================== -->
+
+		<output name='button_pressed'>
+			<broadcast name='button_pressed' />
+		</output>
+		<output name='button_released'>
+			<broadcast name='button_released' />
+		</output>
+
+		<output name='low_voltage_alert'>
+			<broadcast name='notify_low_voltage_alert' />
+		</output>
+
+		<output name='high_current_alert'>
+			<broadcast name='notify_high_current_alert' />
+		</output>
+
+        <!--  special value: frequency;duration  -->
+        <!--                 frequency in Hz  -->
+        <!--                 duration in ms  -->
+        
+        <input_value name='piezo_frequency'>
+            <variable name='piezo_frequency' />
+        </input_value>
+ 
+
+		<!-- discover option, either by 'name' (needs root permission) -->
+		<!-- or connect by 'address' -->
+		<parameter name='btle.policy' value='name' />
+
+		<parameter name='btle.name' value='LPF2 Smart Hub 2 I/O' />
+		<parameter name='btle.address' value='a0:e6:f8:6d:0e:67' />
+
+		<parameter name='mode.strict' value='true' />
+
+	</adapter>
+
+</config>

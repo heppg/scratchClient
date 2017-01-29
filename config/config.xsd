@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:mcp23s17="mcp23s17.xsd">
+	<xs:import namespace="mcp23s17.xsd" schemaLocation="mcp23s17.xsd" />
+	<xs:complexType name="gpio_type">
+		<xs:sequence>
+			<xs:element name="default" type="io_type"></xs:element>
+			<xs:element name="active" type="io_type"></xs:element>
+		</xs:sequence>
+		<xs:attribute name="port" type="xs:string"></xs:attribute>
+		<xs:attribute name="alias" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="input_type">
+		<xs:sequence>
+			<xs:element name="broadcast" type="named_type" maxOccurs="unbounded" minOccurs="1"></xs:element>
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="output_type">
+		<xs:sequence>
+			<xs:element name="broadcast" type="named_type"></xs:element>
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="input_value_type">
+		<xs:sequence>
+			<xs:element name="variable" type="named_type" maxOccurs="unbounded" minOccurs="1"></xs:element>
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="output_value_type">
+		<xs:sequence>
+			<xs:element name="sensor" type="named_type" minOccurs="0"></xs:element>
+
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="parameter_type">
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+		<xs:attribute name="value" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="route_type">
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+		<xs:attribute name="route" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="html_type">
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+		<xs:attribute name="path" type="xs:string"></xs:attribute>
+		<xs:attribute name="comment" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType name="webserver_type">
+		<xs:sequence>
+			<xs:element name="route" type="route_type"></xs:element>
+			<xs:element name="html" type="html_type" maxOccurs="unbounded" minOccurs="0"></xs:element>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="adapter_MCP23S17_type">
+		<xs:complexContent>
+			<xs:extension base="adapter_type">
+				<xs:sequence>
+
+					<xs:element name="io" type="mcp23s17:io_type" maxOccurs="unbounded" minOccurs="1" />
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+
+	<xs:complexType name="adapter_type">
+		<xs:sequence>
+			<xs:element name="description" type="xs:string" maxOccurs="1" minOccurs="0" />
+			<xs:choice maxOccurs="unbounded" minOccurs="0">
+				<xs:element name="gpio" type="gpio_type" maxOccurs="unbounded" minOccurs="0">
+				</xs:element>
+				<xs:element name="input" type="input_type" maxOccurs="unbounded" minOccurs="0">
+				</xs:element>
+				<xs:element name="input_value" type="input_value_type" maxOccurs="unbounded" minOccurs="0">
+				</xs:element>
+				<xs:element name="output" type="output_type" maxOccurs="unbounded" minOccurs="0">
+				</xs:element>
+				<xs:element name="output_value" type="output_value_type" maxOccurs="unbounded" minOccurs="0">
+				</xs:element>
+				<xs:element name="parameter" type="parameter_type" maxOccurs="unbounded" minOccurs="0">
+				</xs:element>
+				<xs:element name="webserver" type="webserver_type" maxOccurs="1" minOccurs="0">
+				</xs:element>
+
+			</xs:choice>
+		</xs:sequence>
+
+		<xs:attribute name="class" type="xs:string"></xs:attribute>
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+
+	<xs:element name="config">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="description" type="xs:string" />
+
+				<xs:choice minOccurs="1" maxOccurs="unbounded">
+					<xs:element name="adapter" type="adapter_type" />
+					<xs:element name="adapter_MCP23S17" type="adapter_MCP23S17_type" />
+				</xs:choice>
+
+			</xs:sequence>
+			<xs:attribute name="version" type="xs:string"></xs:attribute>
+		</xs:complexType>
+	</xs:element>
+
+
+	<xs:complexType name="io_type">
+		<xs:attribute name="dir" type="iodirection_type"></xs:attribute>
+		<xs:attribute name="pull" type="pullup_type"></xs:attribute>
+		<xs:attribute name="default" type="default_type"></xs:attribute>
+	</xs:complexType>
+
+	<xs:simpleType name="iodirection_type">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="IN"></xs:enumeration>
+			<xs:enumeration value="OUT"></xs:enumeration>
+			<xs:enumeration value="RESERVED"></xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="pullup_type">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="PUD_OFF"></xs:enumeration>
+			<xs:enumeration value="PUD_UP"></xs:enumeration>
+			<xs:enumeration value="PUD_DOWN"></xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="named_type">
+		<xs:attribute name="name" type="xs:string"></xs:attribute>
+	</xs:complexType>
+
+	<xs:simpleType name="default_type">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="low"></xs:enumeration>
+			<xs:enumeration value="high"></xs:enumeration>
+		</xs:restriction>
+	</xs:simpleType>
+</xs:schema>

@@ -1,0 +1,123 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+	<description>
+		Servo control.
+		Input values are servo_A. 
+		Values 0..100.
+		
+		Buttons s0, s1, s8 are active.
+		Output events are 's0_pressed', 's1_pressed', 's8_pressed'.
+		Output events are 's0_released', 's1_released', 's8_released' fuer scratch bezeichnet.
+
+		Jumper: 
+			gesetzt:
+               out.2
+               out2.2
+               jp3.0 
+            offen:
+			   out.0, 1, out.3 bis out.7
+               in.0 bis in.7 
+
+		
+	</description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.gpio.GpioOutputPWMServo'  name='servo_pwm'>
+		<description>Sample GPIO PWM</description>
+
+		<gpio port='GPIO23'>
+			<default dir='OUT' pull='PUD_OFF' default='low' />
+			<active dir='RESERVED' />
+		</gpio>
+
+		<input_value name='rate'>
+			<variable name='servo_A'/>
+		</input_value>
+
+		<parameter name='frequency' value='50' />
+		<parameter name='rate' value='50' />
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s0'>
+		<!-- no description, urgg -->
+		<gpio port='GPIO25'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'/>
+		</gpio>
+		
+		<output name='button_pressed'>
+			<broadcast name='s0_pressed'/>
+		</output>
+		<output name='button_released'>
+			<broadcast name='s0_released'/>
+		</output>
+		
+		<parameter name='poll.interval' value='0.05' />
+        <parameter name='value.inverse' value='true' />
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s1'>
+		<!-- no description, urgg -->
+		<gpio port='GPIO24'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'/>
+		</gpio>
+		
+		<output name='button_pressed'>
+			<broadcast name='s1_pressed'/>
+		</output>
+		<output name='button_released'>
+			<broadcast name='s1_released'/>
+		</output>
+		
+		<parameter name='poll.interval' value='0.05' />
+        <parameter name='value.inverse' value='true'/>
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioEventInput' name='button_s8'>
+		<!-- no description, urgg -->
+		<gpio port='GPIO14'>
+			<default dir='IN' pull='PUD_UP'  />
+			<active dir='IN' pull='PUD_UP'/>
+		</gpio>
+
+		<output name='button_pressed'>
+			<broadcast name='s8_pressed'/>
+		</output>
+		<output name='button_released'>
+			<broadcast name='s8_released'/>
+		</output>
+		
+		<parameter name='poll.interval' value='0.05' />
+        <parameter name='value.inverse' value='true' />
+	</adapter>
+
+    <adapter class='adapter.gpio.GpioStateOutput'  name='state'>
+        <description>State display on IKG.IO.9</description>
+
+        <gpio port='IKG.IO.9' alias='state'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+    </adapter>
+
+</config>

@@ -1,0 +1,156 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="config.xsd">
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2014  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+
+	<description>
+		SN3218-Adapter, PiGlow-Board
+		create variables 
+		'all'- controls all LED in sync
+		
+        'branch_0'- controls LED in branch_0
+        'branch_1'- controls LED in branch_1
+        'branch_2'- controls LED in branch_2
+        
+        'channel_00', 'channel_01'...'channel_0A', 'channel_0B', 'channel_0F', 'channel_10', 'channel_11'
+                 - to control individual LED
+        
+    </description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.i2cAdapter.PWM_SN3218' name='18-channel PWM'>
+		<description>DEMO for the SN3218 adapter. This is the device used by the piglow-board</description>
+
+
+		<input_value name='channel_00'>
+			<variable name='channel_00' />
+			<variable name='all' />
+			<variable name='branch_0' />
+		</input_value>
+
+		<input_value name='channel_01'>
+			<variable name='channel_01' />
+			<variable name='all' />
+			<variable name='branch_0' />
+		</input_value>
+
+		<input_value name='channel_02'>
+			<variable name='channel_02' />
+			<variable name='all' />
+			<variable name='branch_0' />
+		</input_value>
+
+		<input_value name='channel_03'>
+			<variable name='channel_03' />
+			<variable name='all' />
+			<variable name='branch_0' />
+		</input_value>
+
+		<input_value name='channel_04'>
+			<variable name='channel_04' />
+			<variable name='all' />
+			<variable name='branch_1' />
+		</input_value>
+
+		<input_value name='channel_05'>
+			<variable name='channel_05' />
+			<variable name='all' />
+			<variable name='branch_1' />
+		</input_value>
+
+		<input_value name='channel_06'>
+			<variable name='channel_06' />
+			<variable name='all' />
+			<variable name='branch_1' />
+		</input_value>
+
+		<input_value name='channel_07'>
+			<variable name='channel_07' />
+			<variable name='all' />
+			<variable name='branch_1' />
+		</input_value>
+
+		<input_value name='channel_08'>
+			<variable name='channel_08' />
+			<variable name='all' />
+			<variable name='branch_1' />
+		</input_value>
+
+		<input_value name='channel_09'>
+			<variable name='channel_09' />
+			<variable name='all' />
+			<variable name='branch_1' />
+		</input_value>
+
+		<input_value name='channel_0A'>
+			<variable name='channel_0A' />
+			<variable name='all' />
+			<variable name='branch_2' />
+		</input_value>
+
+		<input_value name='channel_0B'>
+			<variable name='channel_0B' />
+			<variable name='all' />
+			<variable name='branch_2' />
+		</input_value>
+
+		<input_value name='channel_0C'>
+			<variable name='channel_0C' />
+			<variable name='all' />
+			<variable name='branch_0' />
+		</input_value>
+
+		<input_value name='channel_0D'>
+			<variable name='channel_0D' />
+			<variable name='all' />
+			<variable name='branch_2' />
+		</input_value>
+
+		<input_value name='channel_0E'>
+			<variable name='channel_0E' />
+			<variable name='all' />
+			<variable name='branch_0' />
+		</input_value>
+
+		<input_value name='channel_0F'>
+			<variable name='channel_0F' />
+			<variable name='all' />
+			<variable name='branch_2' />
+		</input_value>
+
+		<input_value name='channel_10'>
+			<variable name='channel_10' />
+			<variable name='all' />
+			<variable name='branch_2' />
+		</input_value>
+
+		<input_value name='channel_11'>
+			<variable name='channel_11' />
+			<variable name='all' />
+			<variable name='branch_2' />
+		</input_value>
+
+		<!-- bus is '1' for RPi Release 2 -->
+		<parameter name='i2c.bus' value='1' />
+
+		<!-- address is fixed for this device -->
+		<parameter name='i2c.address' value='0x54' />
+
+	</adapter>
+
+</config>

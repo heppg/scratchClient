@@ -1,0 +1,55 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="config.xsd" >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2015  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <description>Orientation sensor from a smartphone, using a web page</description>
+
+    <!-- =========================================================================== -->
+
+    <adapter class='adapter.websocket.WebsocketXY_Adapter'  name='XY'>
+        <description>X, Y-Values from an orientation sensor</description>
+        
+        <output_value name='xValue'>
+            <sensor name='goto_X'/>
+        </output_value>
+        
+        <output_value name='yValue'>
+            <sensor name='goto_Y'/>
+        </output_value>
+        
+        <output_value name='cntValue'>
+            <sensor name='counter'/>
+        </output_value>
+        
+        <output name='click'>
+            <broadcast name='click_event'/>
+        </output>
+        
+        <webserver>
+            <!-- implement a web socket link 'route'  -->
+            <route name='pendel' route='/adapter/pendel' />
+            
+            <!--  implement a link on start page of web server -->
+            <html name='pendel' path='websocket/pendel.html' comment='positional sensor from a smartphone' />
+        </webserver>
+        
+    </adapter>
+
+</config>
