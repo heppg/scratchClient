@@ -1,0 +1,155 @@
+thead {
+        font-family: sans-serif;
+        font-style: bold;
+        font-color: #808080;
+        font-size: small;
+}
+
+p {
+        font-family: sans-serif;
+        font-style: normal;
+}
+p.ident {
+        padding-left:40px;
+        font-family: sans-serif;
+        font-style: normal;
+}
+
+h1.title {
+  font-family: sans-serif;
+} 
+h2.title {
+  font-family: sans-serif;
+} 
+h3.title {
+  font-family: sans-serif;
+} 
+h4.title {
+  font-family: sans-serif;
+} 
+h5.title {
+  font-family: sans-serif;
+} 
+
+h1 {
+  font-family: sans-serif;
+} 
+h2 {
+  font-family: sans-serif;
+} 
+h3 {
+  font-family: sans-serif;
+} 
+h4 {
+  font-family: sans-serif;
+} 
+h5 {
+  font-family: sans-serif;
+} 
+
+table {
+    border-width: 1px;
+    margin: 0px;
+    border-color:#808080;
+    border-collapse:collapse;
+}
+td {
+    font-family: sans-serif;
+    font-style: normal;
+}
+
+span.glossterm  {
+    font-weight: bold;
+    font-family: sans-serif;
+}
+
+div.author {
+    font-family: sans-serif;
+
+}
+div.toc {
+    font-family: sans-serif;
+    color: #808080;
+}
+div.navheader {
+    font-family: sans-serif;
+    color: #808080;
+}
+div.table-title {
+    font-weight: bold;
+    font-family: sans-serif;
+    font-size: small;
+    font-color: #808080;
+}
+div.note {
+    background:#fdfdfd;
+    
+    border-color:#808080;
+    
+    border-style:solid;
+    border-bottom-width: 2px;
+    border-top-width: 2px;
+    border-left-width: 0px;
+    border-right-width: 0px;
+
+}
+div.caption {
+    font-family: sans-serif;
+    font-size: 80%;
+    color: #808080;
+}
+div.warning {
+    background:#fdfdfd;
+    
+    border-color:#808080;
+    
+    border-style:solid;
+    border-bottom-width: 2px;
+    border-top-width: 2px;
+    border-left-width: 0px;
+    border-right-width: 0px;
+
+}
+
+div.mediaobject img {
+    border-color:#808080;
+    
+    border-style:solid;
+    border-bottom-width: 1px;
+    border-top-width: 1px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+}
+
+pre.screen {
+    text-align: left;   
+
+    border-color:#808080;
+    border-style:solid;
+    border-width: 1px;
+}
+
+pre.screen p {
+    text-align: left;   
+
+    border-color:#808080;
+    border-style:solid;
+    border-width: 1px;
+}
+
+
+div.note h3 {
+        font-family: sans-serif;
+        font-style: normal;
+        font-weight: bold;
+}
+
+li.listitem {
+        font-family: sans-serif;
+        font-style: normal;
+}
+
+ul.itemizedlist  li.listitem p {
+        margin-top:2;
+        margin-bottom:2;
+}
