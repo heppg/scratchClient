@@ -26,12 +26,14 @@ import helper.abstractQueue
 import threading
 import serial
 import os
+import traceback
 
 if os.name == 'posix':
     import termios
     import fcntl
 
 import logging
+import helper.logging
 import time
 logger = logging.getLogger(__name__)
 
@@ -199,20 +201,20 @@ class UNO_Adapter (adapter.adapters.Adapter):
         bValue = self.isTrue(value)
         if bValue:
             #self.queue.put("out:{bit:02d},1".format(bit=bitvalue))
-            self._queue_put("o:{bit:d}".format(bit=bitvalue), "o:{bit:d},1".format(bit=bitvalue))
+            self._queue_put("o:{bit:d}".format(bit=bitvalue), "o{bit:d},1".format(bit=bitvalue))
         else:
             # self.queue.put("out:{bit:02d},0".format(bit=bitvalue))
-            self._queue_put("o:{bit:d}".format(bit=bitvalue), "o:{bit:d},0".format(bit=bitvalue))
+            self._queue_put("o:{bit:d}".format(bit=bitvalue), "o{bit:d},0".format(bit=bitvalue))
 
     def _set_A_IO(self, value, bitvalue):
         """set PortA to a specific value"""
         bValue = self.isTrue(value)
         if bValue:
             #self._queue_put("out:{bit:02d},1".format(bit=bitvalue))
-            self._queue_put("oa:{bit:d}".format(bit=bitvalue), "oa:{bit:d},1".format(bit=bitvalue))
+            self._queue_put("oa:{bit:d}".format(bit=bitvalue), "oa{bit:d},1".format(bit=bitvalue))
         else:
             # self._queue_put("out:{bit:02d},0".format(bit=bitvalue))
-            self._queue_put("oa:{bit:d}".format(bit=bitvalue), "oa:{bit:d},0".format(bit=bitvalue))
+            self._queue_put("oa:{bit:d}".format(bit=bitvalue), "oa{bit:d},0".format(bit=bitvalue))
 
     def _set_PWM(self, value, bitvalue):
         """set PWM for UNO, value range 0..255"""
@@ -221,9 +223,8 @@ class UNO_Adapter (adapter.adapters.Adapter):
             v = 0
         if v > 255:
             v = 255
-            
         # print("setPWM()") 
-        self._queue_put("p:{bit:d}".format( bit=bitvalue), "p:{bit:d},{value:d}".format( bit=bitvalue, value=v ))
+        self._queue_put("p:{bit:d}".format( bit=bitvalue), "p{bit:d},{value:d}".format( bit=bitvalue, value=v ))
 
     def _set_SERVO(self, value, bitvalue):
         """set SERVO for UNO, value range 0..180"""
@@ -233,7 +234,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
         if v > 180:
             v = 180
         # print("setServo()") 
-        self._queue_put("s:{bit:d}".format( bit=bitvalue ), "s:{bit:d},{value:d}".format( bit=bitvalue, value=v ))
+        self._queue_put("s:{bit:d}".format( bit=bitvalue ), "s{bit:d},{value:d}".format( bit=bitvalue, value=v ))
 
     def _sendValue(self, value):
         """Prototype for a send function"""
@@ -445,7 +446,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
             
         adapter.adapters.Adapter.setActive(self, state)
         if state:
-            self.thread1 = threading.Thread(target=self.queueHandler)
+            self.thread1 = threading.Thread(target=self.run_queueHandler)
             self.thread1.setName(self.name+"queue")
             self.thread1.start()
             pass
@@ -462,11 +463,11 @@ class UNO_Adapter (adapter.adapters.Adapter):
     
     STOPPED = 9999   
     
-    def queueHandler(self):
+    def run_queueHandler(self):
         """ open serial line; write data to serial line """
         
         if debug_0_debug:
-            print("queueHandler() start")
+            print("run_queueHandler() start")
         self.state = self.START 
         nextState = None
            
@@ -483,12 +484,16 @@ class UNO_Adapter (adapter.adapters.Adapter):
                     # print("ser open")
                     lock_loop = 0 
                     nextState = self.WAIT_LOCK
+                except serial.SerialException as e:
+                    logger.error("{n:s}: no connection to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
+                    nextState = self.WAIT_START
                 except Exception as e:
+                    traceback.print_exc()
                     logger.error("{n:s}: no connection to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
                     nextState = self.WAIT_START
                     
             elif self.state == self.WAIT_START:
-                self.delay(5)
+                self.delay(3)
                 
                 nextState = self.START
             
@@ -515,7 +520,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
                     nextState = self.CONNECTED
                 except IOError as e:
                     logger.error("{n:s}: no lock to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
-                    self.ser.close()
+                    
                     nextState = self.WAIT_LOCK
                 pass
             
@@ -523,30 +528,39 @@ class UNO_Adapter (adapter.adapters.Adapter):
                 #
                 # every now and when put a dummy command to arduino (reset buffer, newline is the 'clean'-magic)
                 #
-                         
+                foundData = False         
                 try:
                     s = self.queue_command.get(block=True, timeout= 0.1)
+                    foundData = True
                 except helper.abstractQueue.AbstractQueue.Empty:
-                    continue 
-                try:
-                    if s == '#CONFIGURED':
-                        nextState = self.CONFIGURED
-                        # put the last value received from scratch onto the queue. Use prio 1 for this.
-                        # there is the faint possibility that some values are lost, as only nextState is set here.
+                    pass 
+                
+                if foundData:
+                    try:
+                        if s == '#CONFIGURED':
+                            nextState = self.CONFIGURED
+                            # put the last value received from scratch onto the queue. Use prio 1 for this.
+                            # there is the faint possibility that some values are lost, as only nextState is set here.
+                            
+                            for val in self.lastInputValue.itervalues():
+                                self.queue_data.put(1, val)
+                        else:        
+                            if show:
+                                logger.info("serial out: {l:s}".format( l=s )) 
+                            self.ser.write(s+"\n");
+                            self.ser.flush()
                         
-                        for val in self.lastInputValue.itervalues():
-                            self.queue_data.put(1, val)
-                    else:        
-                        if show:
-                            logger.info("serial out: {l:s}".format( l=s )) 
-                        self.ser.write(s+"\n");
-                        self.ser.flush()
-                    
-                    # slow down in debug_0_debug mode
-                    if debug_0_debug or debug_1_verbose:
-                        time.sleep(0.4)
-                except:
-                    nextState = self.START
+                        # slow down in debug_0_debug mode
+                        if debug_0_debug or debug_1_verbose:
+                            self.delay(0.4)
+                    except serial.SerialException as e:
+                        logger.error("{n:s}: close serial line".format(n=self.name))
+                        self.ser.close()
+                        nextState = self.START
+                    except Exception as e:
+                        traceback.print_exc()
+                        self.ser.close()
+                        nextState = self.START
                     
             elif self.state == self.CONFIGURED:
                 #
@@ -570,25 +584,30 @@ class UNO_Adapter (adapter.adapters.Adapter):
                     except helper.abstractQueue.AbstractQueue.Empty:
                         pass
                      
-                if not( foundData):
-                    continue
-                
-                try:
-                    if show:
-                        logger.info("serial out: {l:s}".format( l=s )) 
+                if foundData:
+                    try:
+                        if show:
+                            with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                                logger.info("{n:s}: serial out: {l:s}".format( n=self.name, l=s )) 
+                            
+                        self.ser.write(s+"\n");
+                        self.ser.flush()
                         
-                    self.ser.write(s+"\n");
-                    self.ser.flush()
-                    
-                    # slow down in debug_0_debug mode
-                    if debug_0_debug or debug_1_verbose:
-                        time.sleep(0.4)
-                except:
-                    nextState = self.START
+                        # slow down in debug_0_debug mode
+                        if debug_0_debug or debug_1_verbose:
+                            self.delay(0.4)
+                    except serial.SerialException as e:
+                        logger.error("{n:s}: close serial line".format(n=self.name))
+                        self.ser.close()
+                        nextState = self.START
+                    except Exception as e:
+                        traceback.print_exc()
+                        self.ser.close()
+                        nextState = self.START
             #
             if show:
                 if self.state != nextState:
-                    print("state ({s:d}) --> ({ns:d})".format(s=self.state, ns=nextState))
+                    logger.info("{n:s}: state ({s:d}) --> ({ns:d})".format(n=self.name,s=self.state, ns=nextState))
                     
             self.state = nextState
             # end while
@@ -598,7 +617,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
             self.ser.close()
             
         if debug_0_debug:
-            print("queueHandler() stopped")
+            print("run_queueHandler() stopped")
             
     def run(self):
         """read data from serial line """
@@ -610,21 +629,27 @@ class UNO_Adapter (adapter.adapters.Adapter):
             if self.state == self.CONNECTED or self.state == self.CONFIGURED:
                 try:
                     line = self.ser.readline()
-                except:
+                except serial.SerialException as e:
+                    self.ser.close()
+                    self.state = self.START
                     continue
+                except Exception as e:
+                    traceback.print_exc()
+                    continue
+                
                 if ( line == ''):
                     continue 
                 
                 line = line.rstrip()
-                if show: print (show, line)
                 if show or debug_0_debug or debug_1_verbose:
-                    logger.debug("line: {l:s}".format( l=line )) 
+                    with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                        logger.info("serial  in: {l:s}".format( l=line )) 
                     
                 if line.startswith( 'config?' ):
                     if show: print("found config request")
                     
-                    if debug_0_debug:
-                        self._queue_put_prio("help")
+                    #if debug_0_debug:
+                    #    self._queue_put_prio("help")
                         
                     if debug_0_debug or debug_1_verbose or debug_2_blink:    
                         xdebug = 0
@@ -670,37 +695,48 @@ class UNO_Adapter (adapter.adapters.Adapter):
                     
                     self._queue_put_prio("#CONFIGURED")
                     
-                if line.startswith( 'i:' ):
+                elif line.startswith( 'arduino' ):
+                    # ignore 'arduino sending@115200 Bd'
+                    # ignore 'arduinoUno, version 2017-01-27'
+                    pass
+                elif line.startswith( 'ident:' ):
+                    pass
+                #
+                elif line.startswith( 'v:' ):
+                    pass
+                #
+                elif line.startswith( 'ai' ):
                     x = line[2:].split(',')
                     port  = x[0]
                     value = x[1]
                     # print("port", port, "value", value)
-                    
+                    self.sendValueByName( 'outputA' + port,  value)
+                #
+                elif line.startswith( 'i' ):
+                    x = line[1:].split(',')
+                    port  = x[0]
+                    value = x[1]
+                    # print("port", port, "value", value)
                     self.sendValueByName( 'outputD' + port,  value)
-                      
-                if line.startswith( 'a:' ):
+                #
+                elif line.startswith( 'a' ):
                     try:
-                        x = line[2:].split(',')
+                        x = line[1:].split(',')
                         port  = x[0]
                         value = x[1]
                         # print("port", port, "value", value)
                         self.sendValueByName( 'outputA' + port,  value)
                     except IndexError:
                         print("IndexError")
-                
-                if line.startswith( 'ai:' ):
-                    x = line[3:].split(',')
-                    port  = x[0]
-                    value = x[1]
-                    # print("port", port, "value", value)
-                    
-                    self.sendValueByName( 'outputA' + port,  value)
                 #
-                if line.startswith( 'e:' ):
-                    
+                elif line.startswith( 'e:' ):
                     logger.info("error count " + line)
-                #
-                
+                else:
+                    logger.info("undefined: " + line)
+            
+            else:
+                self.delay(0.05)
+                    
     def command(self, value):
         """low level command interface for arduino."""
         try:
@@ -863,7 +899,7 @@ class UNO_POWERFUNCTIONS_Adapter (adapter.adapters.Adapter):
             
         adapter.adapters.Adapter.setActive(self, state)
         if state:
-            self.thread1 = threading.Thread(target=self.queueHandler)
+            self.thread1 = threading.Thread(target=self.run_queueHandler)
             self.thread1.setName(self.name+"queue")
             self.thread1.start()
             pass
@@ -875,9 +911,9 @@ class UNO_POWERFUNCTIONS_Adapter (adapter.adapters.Adapter):
     CONNECTED = 1003
     STOPPED = 9999   
     
-    def queueHandler(self):
+    def run_queueHandler(self):
         if debug_0_debug:
-            print("queueHandler() start")
+            print("run_queueHandler() start")
         self.state = self.START 
            
         
@@ -927,7 +963,7 @@ class UNO_POWERFUNCTIONS_Adapter (adapter.adapters.Adapter):
             self.state = self.STOPPED
             self.ser.close()
             
-        logger.debug("{n:s}: queueHandler() stopped".format(n=self.name))
+        logger.debug("{n:s}: run_queueHandler() stopped".format(n=self.name))
             
     def run(self):
         if debug_0_debug:
@@ -991,7 +1027,7 @@ class NEOPIXEL_Adapter (adapter.adapters.Adapter):
             for _ in range( self.length):
                 self.shadow.append( '')
                 
-            self.thread1 = threading.Thread(target=self.queueHandler)
+            self.thread1 = threading.Thread(target=self.run_queueHandler)
             self.thread1.setName(self.name+"queue")
             self.thread1.start()
             pass
@@ -1007,9 +1043,9 @@ class NEOPIXEL_Adapter (adapter.adapters.Adapter):
     WAIT_RESPONSE = 1010
     STOPPED = 9999   
     
-    def queueHandler(self):
+    def run_queueHandler(self):
         if debug_0_debug:
-            print("queueHandler() start")
+            print("run_queueHandler() start")
         self.state = self.START 
         nextState = None
            
@@ -1112,7 +1148,7 @@ class NEOPIXEL_Adapter (adapter.adapters.Adapter):
             self.ser.close()
             
         if debug_0_debug:
-            print("queueHandler() stopped")
+            print("run_queueHandler() stopped")
             
     def run(self):
         """receive data from serial"""

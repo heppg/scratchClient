@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>
+		Arbeitskreis Physical Computing am IKG.
+		Ansteuerung aller Ausgänge.
+		Die Kommandos sind als 'ledN' für scratch bezeichnet.
+		Jumper: 
+			gesetzt:
+			    out.0 bis out.7 alle gesetzt.
+            offen:
+               in.0 bis in.7 
+               out2.0 bis out2.7 
+    </description>
+    
+	<!-- =========================================================================== -->
+	<adapter class='adapter.gpio.GpioOutput'  name='led0'>
+		<description>LED0</description>
+
+		<gpio port='IKG.IO.0'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led0_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led0_ON'/>
+		</input>
+	</adapter>
+	<adapter class='adapter.gpio.GpioOutput'  name='led1'>
+		<description>LED1</description>
+
+		<gpio port='GPIO24'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led1_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led1_ON'/>
+		</input>
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioOutput'  name='led2'>
+		<description>LED2</description>
+
+		<gpio port='GPIO23'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led2_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led2_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='led3'>
+		<description>LED3</description>
+
+		<gpio port='GPIO18'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led3_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led3_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='led4'>
+		<description>LED4</description>
+
+		<gpio port='GPIO22'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led4_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led4_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='led5'>
+		<description>LED5</description>
+
+		<gpio port='GPIO27'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led5_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led5_ON'/>
+		</input>
+	</adapter>
+
+	<adapter class='adapter.gpio.GpioOutput'  name='led6'>
+		<description>LED6</description>
+
+		<gpio port='GPIO17'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led6_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led6_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='led7'>
+		<description>LED7</description>
+
+		<gpio port='GPIO15'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led7_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led7_ON'/>
+		</input>
+	</adapter>
+	
+	<adapter class='adapter.gpio.GpioOutput'  name='led9'>
+		<description>LED9</description>
+
+		<gpio port='GPIO04'>
+			<default dir='OUT'  default='high' />
+			<active  dir='OUT'  default='low' />
+		</gpio>
+		<input name='low'>
+			<broadcast name='led9_OFF'/>
+		</input>
+		<input name='high'>
+			<broadcast name='led9_ON'/>
+		</input>
+	</adapter>
+
+</config>

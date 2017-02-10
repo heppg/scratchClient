@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="config.xsd" >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2014  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <description>FREQ-Values from an Atmel atmega328, 8MHz with program 'steckbrett_328.hex'.
+        Reads frequency measurements.</description>
+
+    <!-- =========================================================================== -->
+    <adapter class='adapter.atmel328_adapter.Atmel328_ADC_Adapter'  name='adc_328'>
+        
+        <description>FREQ-Values and a LED</description>
+        
+        <output_value name='analog_0'>
+            <sensor name='adc_A0'/>
+        </output_value>
+        
+        <output_value name='analog_1'>
+            <sensor name='adc_A1'/>
+        </output_value>
+
+        <output_value name='timer'>
+            <sensor name='freq'/>
+        </output_value>
+               
+        <input name= 'led_on'>
+            <broadcast name='led_on'/>
+        </input>   
+           
+        <input name= 'led_off'>
+            <broadcast name='led_off'/>
+        </input>
+        
+        <!-- although not actively used, this is needed to handle reset line -->
+        <gpio port='GPIO24'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='high' />
+        </gpio>
+
+        <!-- polling time for external device -->
+        <parameter name='poll.interval' value='0.08' />
+
+        <!-- enable timer on atmel firmware 
+             values 0, 1 -->
+        <parameter name='timer.enable' value='1' />
+        <!-- enable noise cancelling for ICP1== PB.1 on atmel firmware 
+             limits input range, but generally a good idea to enable this. 
+             values 0, 1 -->
+        <parameter name='timer.noisecanceller' value='1' />
+        <!-- Values for mode are 
+            timePeriod 10..20 kHz (default)
+            framedCounter_20ms  count events in 20ms frame -->
+        <parameter name='timer.mode' value='timedCounter_20ms' />
+ 
+        <parameter name='adc.0.enable' value='0' />
+        <parameter name='adc.1.enable' value='0' />
+        
+        <!-- avcc = 3.3V , internal == 1.1V -->
+        <parameter name='adc.0.reference' value='internal' />
+        <parameter name='adc.1.reference' value='internal' />
+
+ 
+        <parameter name='spi.bus' value='0' />
+        <parameter name='spi.device' value='0' />
+    </adapter>
+
+</config>

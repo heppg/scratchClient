@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>Sample configuration</description>
+
+	<!-- =========================================================================== -->
+	<adapter class='adapter.Cap1188Adapter.PianoHat_CAP1188_Adapter' name='piano_adapter'>
+		
+		<description>pimoroni piano hat</description>
+	
+
+        <output name='broadcast_00_on'><broadcast name='button_00'/></output>
+        <output name='broadcast_01_on'><broadcast name='button_01'/></output>
+        <output name='broadcast_02_on'><broadcast name='button_02'/></output>
+        <output name='broadcast_03_on'><broadcast name='button_03'/></output>
+        <output name='broadcast_04_on'><broadcast name='button_04'/></output>
+        <output name='broadcast_05_on'><broadcast name='button_05'/></output>
+        <output name='broadcast_06_on'><broadcast name='button_06'/></output>
+        <output name='broadcast_07_on'><broadcast name='button_07'/></output>
+        <output name='broadcast_08_on'><broadcast name='button_08'/></output>
+        <output name='broadcast_09_on'><broadcast name='button_09'/></output>
+        <output name='broadcast_10_on'><broadcast name='button_10'/></output>
+        <output name='broadcast_11_on'><broadcast name='button_11'/></output>
+        <output name='broadcast_12_on'><broadcast name='button_12'/></output>
+        <output name='broadcast_13_on'><broadcast name='button_13'/></output>
+        <output name='broadcast_14_on'><broadcast name='button_14'/></output>
+        <output name='broadcast_15_on'><broadcast name='button_15'/></output>
+
+        <output name='broadcast_00_off'><broadcast name='button_00_off'/></output>
+        <output name='broadcast_01_off'><broadcast name='button_01_off'/></output>
+        <output name='broadcast_02_off'><broadcast name='button_02_off'/></output>
+        <output name='broadcast_03_off'><broadcast name='button_03_off'/></output>
+        <output name='broadcast_04_off'><broadcast name='button_04_off'/></output>
+        <output name='broadcast_05_off'><broadcast name='button_05_off'/></output>
+        <output name='broadcast_06_off'><broadcast name='button_06_off'/></output>
+        <output name='broadcast_07_off'><broadcast name='button_07_off'/></output>
+        <output name='broadcast_08_off'><broadcast name='button_08_off'/></output>
+        <output name='broadcast_09_off'><broadcast name='button_09_off'/></output>
+        <output name='broadcast_10_off'><broadcast name='button_10_off'/></output>
+        <output name='broadcast_11_off'><broadcast name='button_11_off'/></output>
+        <output name='broadcast_12_off'><broadcast name='button_12_off'/></output>
+        <output name='broadcast_13_off'><broadcast name='button_13_off'/></output>
+        <output name='broadcast_14_off'><broadcast name='button_14_off'/></output>
+        <output name='broadcast_15_off'><broadcast name='button_15_off'/></output>
+
+        <parameter name="auto_leds" value="true"  />
+
+	</adapter>
+
+</config>

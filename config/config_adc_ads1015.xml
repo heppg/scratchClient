@@ -35,6 +35,13 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
         <parameter name='i2c.bus' value='1' />
         
         <!-- address is '0x48' for adafruit ADS1015 -->
+        <!--  other option are
+		        ADDR PIN    SLAVE ADDRESS
+		        Ground      0b1001000  0x48
+		        VDD         0b1001001  0x49
+		        SDA         0b1001010  0x4A
+		        SCL         0b1001011  0x4b
+        -->
         <parameter name='i2c.address' value='0x48' />
         
         <parameter name='adc.channel' value='2' />

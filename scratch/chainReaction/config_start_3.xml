@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2013  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>Sample remote communication configuration</description>
+
+    <adapter class='adapter.remote.CommunicationAdapter' name='config_3'>
+        
+        <!-- Adapter uses native Syntax -->
+        
+        <description>Remote communication adapter. </description>
+
+        <remote type='forward'>
+            <broadcast name='start_4'/>
+        </remote>
+        <remote type='receive'>
+            <broadcast name='start_3'/>
+        </remote>
+
+        <parameter name="group" value="groupA"  />
+        <parameter name="server" value="192.168.2.90" />
+
+    </adapter>
+    <adapter class='adapter.gpio.GpioOutput'  name='led0'>
+        <description>LED0</description>
+
+        <gpio port='GPIO18'>
+            <default dir='OUT'  default='low' />
+            <active  dir='OUT'  default='low' />
+        </gpio>
+        <input name='low'>
+            <broadcast name='led_OFF'/>
+        </input>
+        <input name='high'>
+            <broadcast name='led_ON'/>
+        </input>
+    </adapter>
+
+</config>

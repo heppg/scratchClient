@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="config.xsd" >
+	<!--
+	# ===========================================================================
+	# Copyright (C) 2015  Gerhard Hepp
+	#
+	# This program is free software; you can redistribute it and/or modify it under the terms of
+	# the GNU General Public License as published by the Free Software Foundation; either version 2
+	# of the License, or (at your option) any later version.
+	#
+	# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+	# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	# See the GNU General Public License for more details.
+	#
+	# You should have received a copy of the GNU General Public License along with this program; if
+	# not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+	# MA 02110, USA
+	# ===========================================================================
+	-->
+
+	<description>Sense Hat LED control</description>
+
+    <adapter class='adapter.senseHat_adapter.SenseHat_Adapter' name='astro-pi'>
+        
+        <!-- -->
+        
+        <description>SenseHat. LED and environmental sensors so far</description>
+
+        <input name= 'clear'>
+            <broadcast name='sense_led_clear'/>
+        </input>
+        
+        <input name= 'setPixel_xy'>
+            <broadcast name='sense_led_xy_on'/>
+        </input>
+        
+        <input name= 'clearPixel_xy'>
+            <broadcast name='sense_led_xy_off'/>
+        </input>
+ 
+        <!--  variables for setting pixels -->
+        
+        <input_value name='pixelX'>
+            <variable name='x_pos'/>
+        </input_value>
+        
+        <input_value name='pixelY'>
+            <variable name='y_pos'/>
+        </input_value>
+        
+         <input_value name='color'>
+            <variable name='color'/>
+        </input_value>
+ 
+        <!--  environmental sensors from adapter to scratch -->
+        
+        <output_value name='temperature'>
+            <sensor name='temperature'/>
+        </output_value>
+        
+        <output_value name='pressure'>
+            <sensor name='pressure'/>
+        </output_value>
+        
+         <output_value name='humidity'>
+            <sensor name='humidity' />
+        </output_value>
+        
+        <!--  IMU sensors from adapter to scratch -->
+        
+         <output_value name='orientation_pitch'>
+            <sensor name='orientation_pitch' />
+          </output_value>
+        
+         <output_value name='orientation_roll'>
+            <sensor name='orientation_roll' />
+        </output_value>
+        
+         <output_value name='orientation_yaw'>
+            <sensor name='orientation_yaw' />
+        </output_value>
+        
+        
+        <!-- polling time for external device -->
+        <parameter name='poll.interval' value='0.1' />
+        
+        
+    </adapter>
+
+</config>

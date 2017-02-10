@@ -26,7 +26,7 @@
 #     This code now hosted on Github thanks to Ben Nuttall
 #     Version 2.3 15Jun13
 #
-# Major rework done in July 2013 till 2016  by Gerhard Hepp
+# Major rework done in July 2013 till 2017  by Gerhard Hepp
 # Features are
 # - protocol handling
 # - Modularization of Software (server connection, data model, configuration, monitoring)
@@ -35,13 +35,15 @@
 # - added various devices
 # --------------------------------------------------------------------------------------------
 # target environment:  python release 2.7
+#                      python release 3.3
 # --------------------------------------------------------------------------------------------
 # changes:
 # 
 changes = [
-           
+'2017-01-26 minor changes in log messages on scratch connection.',  
 '2017-01-16 improved connection handling and last-value in arduinoUNO adapter.',  
 '2017-01-10 all queue definitions wrapped by a helper class to fix python2/3 compatibility.',  
+#
 '2016-12-19 arduino nano used as neopixel driver',  
 '2016-12-01 pico2wave tts adapter',  
 '2016-10-30 bugfix adapter.arduino.UNO_Adapter (usage of analog pins on arduino for digital io)',  
@@ -49,6 +51,7 @@ changes = [
 '2016-08-19 added hc-sr04 sensor based on pigpiod',           
 '2016-08-14 added lego wedo2 adapter',           
 '2016-07-31 added openweathermap-api access',
+#
 '2016-06-05 added config file config_AT42QT1070',
 '2016-05-30 Adapter GpioButtonInput is deprecated, use GpioEventInput instead',
 '2016-05-28 fixed bug in GpioEventInput (inverse did not work)',
@@ -64,6 +67,7 @@ changes = [
 '2016-02-21 performance optimizations in arduinoUNO adapter and arduino sketch.',
 '2016-02-15 added servo capability for arduinoUNO-adapter, reworked reconnect policy for this adapter.',
 '2016-01-02 dma based PWM added, gpioLib-switch removed.',
+#
 '2015-12-09 bug fixes in pwm-servo; value range checks added.',
 '2015-11-16 pianoHat Adapter added.',
 '2015-11-16 bugfix in GpioInput-Adapter.',
@@ -78,6 +82,7 @@ changes = [
 '2015-07-17 GpioValueInput-Adapter added. Allows to send predefined values on low/high',
 '2015-07-14 MCP3008',
 '2015-07-09 error recovery strategy for scratch 1.4 2015-jan-15, issue #136',
+#
 '2015-05-25 added arduinoUNO adapter.',
 '2015-05-23 system time adapter added',
 '2015-05-05 piFace support, piGlow support',
@@ -94,6 +99,7 @@ changes = [
 '2015-03-01 added usb adapter for HID-barcode-scanner',
 '2015-02-12 added servoblaster adapter',
 '2015-01-04 removed quote-handling-problem in broadcast name strings',
+#
 '2014-12-22 added a lookup strategy for config files which allows for simpler command line syntax',
 '2014-12-17 namevalueparser, corrected for quote in name',           
 '2014-12-13 worked on python3 compatibility; changed package structure (adapter.adapter->adapter.adapters); fixed codepage conversion problems in web access.',           
@@ -113,6 +119,7 @@ changes = [
 '2014-07-12 added GpioStateOutput, for signalling client state. Needed some \
             adjustments in interrupt handling to allow for this special type of \
              adapter. ',
+#
 '2014-06-19 performance optimizations adapter, commandResolve-Logic (no eval).',
 '2014-06-17 minor performance optimizations in namevalueparser.',
 '2014-06-12 corrected some instability in receiving variables.',
@@ -126,6 +133,7 @@ changes = [
 '2014-02-03 enable one broadcast/value for multiple adapters',
 '2014-01-24 fixed a conversion error from adapter to framework (now always strings)',
 '2014-01-06 added WS2801-Adapter, some bug fixes in SPI handling',
+#
 '2013-12-26 added remote connection adapter',
 '2013-12-01 configuration file for portMapping in xml',
 '2013-11-16 added sighup in order to catch terminal closed.',
@@ -165,6 +173,8 @@ import socket
 import traceback
 import threading
 import time
+
+import helper.logging
 
 commandlineHelp = """
 -host <ip>           Scratch Host ip or hostname, default 127.0.0.1
@@ -254,6 +264,7 @@ gpl2 = """
  not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, 
  MA 02110, USA 
 """
+
 runIt = True
 
 import environment        
@@ -749,7 +760,7 @@ class ScratchClient(threading.Thread):
 
         while not(self.stopped()):
             try:
-                s = self.myQueue.get(True, 0.2)
+                s = self.myQueue.get(True, 0.1)
             except helper.abstractQueue.AbstractQueue.Empty:
                 if self.stopped():
                     break
@@ -796,7 +807,8 @@ class ScratchClient(threading.Thread):
                 logger.error("no socket")
                 return
             
-            logger.warn('Connected to Scratch !')
+            with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                logger.info('Connected to Scratch !')
             
             the_socket.settimeout(SOCKET_TIMEOUT)
 
@@ -834,8 +846,9 @@ class ScratchClient(threading.Thread):
                 scratch_sock = None
                 if count == 0:
                     logger.warn( "There was an error connecting to Scratch!" )
+                    # in german for the kids in school:
                     logger.warn( "  Unterstützung für Netzwerksensoren einschalten!" )
-                    logger.warn( "  Activate remote sensor network!" )
+                    logger.warn( "  Activate remote sensor connections!" )
                     logger.info( "  No Mesh session at host: %s, port: %s" , host, port) 
                 for _ in range(0,50):
                     if self.stopped():
@@ -851,10 +864,7 @@ class ScratchClient(threading.Thread):
             logger.warn ("received signal %s", str(signum))
         # self.runIt = False
         self.stop()
-        
-        global runIt
-        runIt = False
-        
+
         for adapter in self.config.getAdapters():
             #
             # kindly ask the adapters to terminate
@@ -871,6 +881,10 @@ class ScratchClient(threading.Thread):
             
         threadManager.cleanup_socket()
         threadManager.cleanup_threads()
+
+        global runIt
+        runIt = False
+
 #
 # Singleton things, use a PID-File
 #
@@ -1152,14 +1166,17 @@ if __name__ == '__main__':
     
     nWTR = 0
     while runIt:
-        if nWTR % 1000 == 0:
+        if nWTR % 20000 == 0:
             logger.debug("still running")
-        time.sleep(2)
+        time.sleep(0.1)
         nWTR += 1
-    time.sleep(2)
+    time.sleep(0.1)
     
+    # for debugging purpose, list out not yet terminated threads.
+    # MainThread counts as 1, so list only if activeCount > 1
+    # 
     cnt = 0    
-    while cnt < 2 and threading.activeCount() > 0:
+    while cnt < 2 and threading.activeCount() > 1:
         cnt += 1
         for t in threading.enumerate():
             print("active threads ", t)
@@ -1167,7 +1184,7 @@ if __name__ == '__main__':
         time.sleep(3)
         
     cleanSingleton ()
-    # print("main ended")
+    print("scratchClient terminated")
     logger.debug("main ended")
     
     quit()

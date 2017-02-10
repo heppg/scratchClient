@@ -2,6 +2,7 @@
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:mcp23s17="mcp23s17.xsd">
 	<xs:import namespace="mcp23s17.xsd" schemaLocation="mcp23s17.xsd" />
+	
 	<xs:complexType name="gpio_type">
 		<xs:sequence>
 			<xs:element name="default" type="io_type"></xs:element>
@@ -93,7 +94,6 @@
 				</xs:element>
 				<xs:element name="webserver" type="webserver_type" maxOccurs="1" minOccurs="0">
 				</xs:element>
-
 			</xs:choice>
 		</xs:sequence>
 

@@ -1,7 +1,10 @@
 <?xml version='1.0' encoding='utf-8' ?>
 <config version='1.0'
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xsi:noNamespaceSchemaLocation="config.xsd" >
+xmlns:conf="http://www.heppg.de/2015/XMLSchema-instance"
+
+xsi:noNamespaceSchemaLocation="config.xsd" 
+xsi:schemaLocation="conf conf.xsd">
     <!--
     # ===========================================================================
     # Copyright (C) 2015  Gerhard Hepp
@@ -31,15 +34,15 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
             <sensor name='adcA_zone'/>
         </output_value>
         
-        <zone from='0' to='99' value='left'/>
-        <zone from='100' to='923' value='middle'/>
-        <zone from='924' to='1023' value='right'/>
-        
-        
         <parameter name='poll.interval' value='0.066' />
         <parameter name='spi.bus' value='0' />
         <parameter name='spi.device' value='0' />
         <parameter name='adc.channel' value='0' />
+        
+        <conf:zone from='0' to='99' value='left'/>
+        <conf:zone from='100' to='923' value='middle'/>
+        <conf:zone from='924' to='1023' value='right'/>
+        
     </adapter>
 
 </config>

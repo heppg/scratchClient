@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mcp23s17="mcp23s17.xsd" xsi:noNamespaceSchemaLocation="config.xsd"
+    xsi:schemaLocation="mcp23s17 mcp23s17.xsd "
+>
+
+    <!-- 
+    # =============================================================================================
+    # Copyright (C) 2015  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # =============================================================================================
+        -->
+
+    <description>
+        Arduino UNO with custom program used to drive neopixel. 
+        Needs arduino code arduino/arduinoNeopixel/arduinoNeopixel.ino in arduino UNO/Nano.
+    </description>
+
+    <!-- =========================================================================== -->
+    <adapter class='adapter.arduino.NEOPIXEL_Adapter' name='UNO_NEOPIXEL'>
+        <!--  Sample arduino communication. Needs arduino sketch programmed in arduino. -->
+
+       
+        <!-- digital input values are inputs for the adapter (but outputs for arduino) -->
+        
+        <input_value name='led'>
+            <variable name='led'/>
+        </input_value>
+        
+        <input name='clear'>
+            <broadcast name='clear'/>
+        </input>
+
+        <input name='red'>
+            <broadcast name='red_all'/>
+        </input>
+        <input name='green'>
+            <broadcast name='green_all'/>
+        </input>
+        <input name='blue'>
+            <broadcast name='blue_all'/>
+        </input>
+
+        <!-- ==================================================== -->
+        <!--  on windows, use COMn, e.g. COM6  -->
+        <!--  on raspberry, use /dev/ttyn, e.g. /dev/ttyAMA0  -->
+         
+        <!--  <parameter name='serial.device' value='/dev/ttyUSB0' />
+         -->
+        
+        <parameter name='led.length' value='144' />
+        
+        <!-- shadow keeps a duplicate of led values in memory and only sends set-led if values
+             have changed. This reduces communication effort to arduino and improves
+             sppe.  -->
+        <parameter name='led.shadow' value='true' />
+        
+        <parameter name='serial.device' value='COM19' />
+        <parameter name='serial.baud' value='115200' />
+
+        <!-- ==================================================== -->
+        
+
+    </adapter>
+
+</config>

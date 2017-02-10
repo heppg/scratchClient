@@ -20,16 +20,13 @@
 #  sudo apt-get install python-pip
 #  sudo  pip install cherrypy routes routes Mako
 
-
 debug = False
 debug_grid = False
 
 import time
 import os
 import json
-
 import threading
-
 import sys 
 
        
@@ -40,11 +37,8 @@ import posixpath
 from mako.template import Template
 from mako.lookup import TemplateLookup
 
-
 from ws4py.server.cherrypyserver import WebSocketPlugin, WebSocketTool
 from ws4py.websocket import WebSocket
-
-
     
 import xml.etree.ElementTree as ET
 import publishSubscribe
@@ -119,8 +113,8 @@ class IDManager():
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
-                
         return res   
+
     def getDisplayId_scratchInputValueSummary (self):
         """return a dict with scratch names as keys; values are list of to be animated elements"""
         res = {}
@@ -131,8 +125,8 @@ class IDManager():
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
-                
         return res   
+
     def getDisplayId_scratchOutputCommandSummary (self):
         """return a dict with scratch names as keys; values are list of to be animated elements"""
         res = {}
@@ -143,8 +137,8 @@ class IDManager():
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
-                
         return res   
+
     def getDisplayId_scratchOutputValueSummary (self):
         """return a dict with scratch names as keys; values are list of to be animated elements"""
         res = {}
@@ -155,7 +149,6 @@ class IDManager():
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
-                
         return res   
     
 idManager = IDManager()
@@ -1318,11 +1311,9 @@ class ServerThread(threading.Thread):
         
         if logger.isEnabledFor(logging.DEBUG):    
             logger.debug("ServerThread thread stopped")
-        else:
-            print("ServerThread thread stopped")
     
     def cherrypy_exithandler(self):
-        logger.error("cherrypy exit")
+        logger.error("cherrypy cherrypy_exithandler")
             
     def registerCommandResolver(self, _commandResolver):
         global commandResolver

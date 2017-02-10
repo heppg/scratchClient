@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="config.xsd" >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2013  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <description>Streaming out Bytes to a WS2801-Device.
+        To keep it simple, the input variable is a concatenated list of 
+        color names 'red', 'darkred', 'green', 'blue', yellow', 'pink'.
+        
+        Could also be #rrggbb-hex values, but not implemented for simplicity.
+        Separators are blank.  
+     </description>
+
+    <!-- =========================================================================== -->
+    <adapter class='adapter.spiAdapter.WS2801_Adapter'  name='led_stripe'>
+        
+        <description>LED Stripe of 50 </description>
+        
+        <input_value name='led'>
+            <variable name='led'/>
+        </input_value>
+        
+        <parameter name='led.length' value='50' />
+        
+        <parameter name='spi.bus' value='0' />
+        <parameter name='spi.device' value='0' />
+    </adapter>
+    
+
+</config>
