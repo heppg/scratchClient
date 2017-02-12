@@ -50,9 +50,9 @@ import adapter
 #
 # production settings: all are False
 #
-debug_0_debug = False
-debug_1_verbose=False
-debug_2_blink=False
+debug_0_debug   = False
+debug_1_verbose = False 
+debug_2_blink   = False
 #
 # ----------------------------------------------------------
 #
@@ -241,22 +241,41 @@ class UNO_Adapter (adapter.adapters.Adapter):
         self.sendValue('"' + value + '"')
 
     def __init__(self):
-        
+        self.state_arduinoConfigured = 'undef'
         adapter.adapters.Adapter.__init__(self)
         self.queue_data = helper.abstractQueue.PriorityQueue()
         self.queue_command = helper.abstractQueue.PriorityQueue()
+        self.stateMachine = UNO_Adapter.StateMachine(self)
         self.lastInputValue = {}
         
-        # one arduino pin is bitmasked in one of the folling categories.
-                
-        self.state = self.START
+    def setActive(self, state):
+        adapter.adapters.Adapter.setActive(self, state)
+
+        if state:
+            self.stateMachine._start()
+            self.stateMachine.start()
+        else:
+            
+            self.stateMachine.disconnectEvent() 
+            self.stateMachine.stop() 
+            
+            # wait till state == STOP, but max 0.5 sec
+            t0 = time.time()
+            while True:
+                if t0 + 0.5 < time.time():
+                    break
+                if self.stateMachine.state.name() == "STOP":
+                    break;
+                time.sleep(0.01)
+                  
+            self.stateMachine._stop()       
         
     def _queue_put(self, key, s):
         """ put a data command to the queue, low level prio"""
         self.lastInputValue [ key] = s
         
         # only output when arduino is connected 
-        if self.state == self.CONFIGURED:
+        if self.state_arduinoConfigured == "CONFIGURED":
             self.queue_data.put( 2, s )
         
     def _queue_put_prio(self, s):
@@ -436,98 +455,188 @@ class UNO_Adapter (adapter.adapters.Adapter):
                     errorManager.append("{lc:s}: invalid attribute dir='{dir:s}' in arduino_uno:analog, id='{id:s}'".format( lc=loggingContext, id=_id, dir=_dir ))
                     continue
 
-        #
-       
-    def setActive (self, state):
-        if debug_0_debug:
-            print(self.name, "setActive", state)
-        if state:
-            pass
+    ##
+    ## ------------------------------------------
+    ##
+    def actionConnect(self, log=True):
+        """  
+            log=True: log on connect failure
+            log=False: log on connect success
             
-        adapter.adapters.Adapter.setActive(self, state)
-        if state:
-            self.thread1 = threading.Thread(target=self.run_queueHandler)
-            self.thread1.setName(self.name+"queue")
-            self.thread1.start()
-            pass
-        #print(self.name + ": setActibe finished")
-    
-    START = 1000
-    WAIT_START = 1003
-    
-    WAIT_LOCK = 1002
-    LOCK = 1004
-    
-    CONNECTED = 1005
-    CONFIGURED = 1010
-    
-    STOPPED = 9999   
-    
-    def run_queueHandler(self):
-        """ open serial line; write data to serial line """
-        
-        if debug_0_debug:
-            print("run_queueHandler() start")
-        self.state = self.START 
-        nextState = None
-           
-        t_r = time.time()
-        lock_loop = 0
-        
-        while not self.stopped():
+            return
+                success
+                fail """
+        try:
+            self.ser = serial.Serial(self.parameters[self.parameter_SERIAL_DEVICE],
+                         int(self.parameters[self.parameter_SERIAL_BAUD]),
+                         timeout=0.1 )
+            if log == False:
+                with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                    logger.info("{n:s}: connection established to arduino".format(n=self.name))
                 
-            if self.state == self.START:
-                try:
-                    self.ser = serial.Serial(self.parameters[self.parameter_SERIAL_DEVICE],
-                                 int(self.parameters[self.parameter_SERIAL_BAUD]),
-                                 timeout=0.1 )
-                    # print("ser open")
-                    lock_loop = 0 
-                    nextState = self.WAIT_LOCK
-                except serial.SerialException as e:
-                    logger.error("{n:s}: no connection to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
-                    nextState = self.WAIT_START
-                except Exception as e:
-                    traceback.print_exc()
-                    logger.error("{n:s}: no connection to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
-                    nextState = self.WAIT_START
-                    
-            elif self.state == self.WAIT_START:
-                self.delay(3)
-                
-                nextState = self.START
+        except serial.SerialException as e:
+            if log:
+                logger.error("{n:s}: no connection to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
+            return "fail"
+        except Exception as e:
+            traceback.print_exc()
+            logger.error("{n:s}: no connection to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
+            return "fail"
+        return "success"
+    
+     
+    def actionLock(self):
+        """  success
+            fail """
+        try:
+            fcntl.ioctl(self.ser.fileno(), termios.TIOCEXCL)
             
-            elif self.state == self.WAIT_LOCK:
-                if os.name == 'posix':
-                    
-                    self.delay(0.02)
-                    lock_loop += 1
-                    if lock_loop == 100:
-                        logger.error("{n:s}: no lock available to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
-                        self.ser.close()
-                        nextState = self.WAIT_START
-                    else:
-                        nextState = self.LOCK
-                else:
-                    nextState = self.CONNECTED
+        except IOError as e:
+            logger.error("{n:s}: no lock to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
+            
+            return 'fail'
+        return "success" 
+    
+    def actionDisconnectEvent(self):
+        # self._queue_put_prio("disconnect")
+        pass
+    
+    def actionReportDisconnect(self):
+        logger.warning("{n:s}: lost connection to arduino".format(n=self.name))
+        
+    def actionDisconnect(self):
+        """  success
+            fail """
+        try:
+            self.ser.close()
+            
+        except serial.SerialException:
+            return 'fail'
+        except Exception:
+            traceback.print_exc()
+            return 'fail'
+        return "success"
+     
+    def _runReceive(self):
+        logger.debug("_runReceive %", "start")
+        while not self._stopped:
+            try:
+                line = self.ser.readline()
+            except serial.SerialException as e:
+                self.state_arduinoConfigured = "undef"
+                self.stateMachine.serialError()
+                break
+            except Exception as e:
+                traceback.print_exc()
                 
+                continue
+            
+            if ( line == ''):
+                continue 
+            
+            line = line.rstrip()
+            if show or debug_0_debug or debug_1_verbose:
+                with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                    logger.info("serial  in: {l:s}".format( l=line )) 
                 
-            elif self.state == self.LOCK:
-                # lock access if system is a linux 'something
-                #
-                try:
-                    fcntl.ioctl(self.ser.fileno(), termios.TIOCEXCL)
-                    nextState = self.CONNECTED
-                except IOError as e:
-                    logger.error("{n:s}: no lock to {s:s} {e:s}".format(n=self.name, s=self.parameters[self.parameter_SERIAL_DEVICE], e=e))
+            if line.startswith( 'config?' ):
+                if show: print("found config request")
+                
+                #if debug_0_debug:
+                #    self._queue_put_prio("help")
                     
-                    nextState = self.WAIT_LOCK
+                if debug_0_debug or debug_1_verbose or debug_2_blink:    
+                    xdebug = 0
+                    if debug_0_debug:
+                        xdebug |= 1
+                    if debug_1_verbose:
+                        xdebug |= 2 
+                    if debug_2_blink:
+                        xdebug |= 4
+                    self._queue_put_prio("cdebug:{data:04x}".format(data= xdebug))
+                    
+                self._queue_put_prio("cversion?")
+                
+                self._queue_put_prio("cident?")
+                #self.queue.put("cident:NANO_000")
+                
+                if self._analog_analog_inputs != 0:
+                    self._queue_put_prio("caain:{data:04x}".format(data=self._analog_analog_inputs))  
+                
+                if self._analog_digital_inputs != 0:
+                    self._queue_put_prio("cadin:{data:04x}".format(data=self._analog_digital_inputs))  
+                
+                if self._analog_digital_input_pullups != 0:
+                    self._queue_put_prio("cadinp:{data:04x}".format(data=self._analog_digital_input_pullups))  
+                
+                if self._analog_digital_outputs != 0:
+                    self._queue_put_prio("cadout:{data:04x}".format(data=self._analog_digital_outputs))
+                
+                if self._digital_inputs != 0:  
+                    self._queue_put_prio("cdin:{data:04x}".format(data=self._digital_inputs))
+                
+                if self._digital_input_pullups != 0:  
+                    self._queue_put_prio("cdinp:{data:04x}".format(data=self._digital_input_pullups))
+                
+                if self._digital_outputs != 0:
+                    self._queue_put_prio("cdout:{data:04x}".format(data=self._digital_outputs))
+                
+                if self._digital_pwms != 0:
+                    self._queue_put_prio("cdpwm:{data:04x}".format(data=self._digital_pwms))
+                
+                if self._digital_servos != 0:   
+                    self._queue_put_prio("cdservo:{data:04x}".format(data=self._digital_servos))
+                
+                self._queue_put_prio("#CONFIGURED")
+                
+            elif line.startswith( 'arduino' ):
+                # ignore 'arduino sending@115200 Bd'
+                # ignore 'arduinoUno, version 2017-01-27'
                 pass
-            
-            elif self.state == self.CONNECTED:
-                #
-                # every now and when put a dummy command to arduino (reset buffer, newline is the 'clean'-magic)
-                #
+            elif line.startswith( 'ident:' ):
+                pass
+            #
+            elif line.startswith( 'v:' ):
+                pass
+            #
+            elif line.startswith( 'ai' ):
+                x = line[2:].split(',')
+                port  = x[0]
+                value = x[1]
+                # print("port", port, "value", value)
+                self.sendValueByName( 'outputA' + port,  value)
+            #
+            elif line.startswith( 'i' ):
+                x = line[1:].split(',')
+                port  = x[0]
+                value = x[1]
+                # print("port", port, "value", value)
+                self.sendValueByName( 'outputD' + port,  value)
+            #
+            elif line.startswith( 'a' ):
+                try:
+                    x = line[1:].split(',')
+                    port  = x[0]
+                    value = x[1]
+                    # print("port", port, "value", value)
+                    self.sendValueByName( 'outputA' + port,  value)
+                except IndexError:
+                    print("IndexError")
+            #
+            elif line.startswith( 'e:' ):
+                logger.info("error count " + line)
+            else:
+                logger.info("undefined: " + line)
+        
+        logger.debug("_runReceive %", "end")
+
+    def _runSend(self):
+        logger.debug("_runSend %", "start")
+        self.state_arduinoConfigured = "undef"
+        t_r = time.time()
+        
+        while not self._stopped:
+            if self.state_arduinoConfigured == "undef":
                 foundData = False         
                 try:
                     s = self.queue_command.get(block=True, timeout= 0.1)
@@ -538,12 +647,13 @@ class UNO_Adapter (adapter.adapters.Adapter):
                 if foundData:
                     try:
                         if s == '#CONFIGURED':
-                            nextState = self.CONFIGURED
+                            self.state_arduinoConfigured = 'CONFIGURED'
                             # put the last value received from scratch onto the queue. Use prio 1 for this.
                             # there is the faint possibility that some values are lost, as only nextState is set here.
                             
                             for val in self.lastInputValue.itervalues():
                                 self.queue_data.put(1, val)
+                            continue
                         else:        
                             if show:
                                 logger.info("serial out: {l:s}".format( l=s )) 
@@ -554,15 +664,15 @@ class UNO_Adapter (adapter.adapters.Adapter):
                         if debug_0_debug or debug_1_verbose:
                             self.delay(0.4)
                     except serial.SerialException as e:
+                        self.state_arduinoConfigured = "undef"
                         logger.error("{n:s}: close serial line".format(n=self.name))
-                        self.ser.close()
-                        nextState = self.START
+                        self.stateMachine.serialError()
                     except Exception as e:
+                        self.state_arduinoConfigured = "undef"
                         traceback.print_exc()
-                        self.ser.close()
-                        nextState = self.START
-                    
-            elif self.state == self.CONFIGURED:
+                        self.stateMachine.serialError()
+                
+            elif self.state_arduinoConfigured == 'CONFIGURED':
                 #
                 # every now and when put a dummy command to arduino (reset buffer, newline is the 'clean'-magic)
                 #
@@ -576,7 +686,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
                     foundData = True
                 except helper.abstractQueue.AbstractQueue.Empty:
                     pass
-
+    
                 if not( foundData):
                     try:
                         s = self.queue_data.get(block=True, timeout= 0.1)
@@ -597,145 +707,343 @@ class UNO_Adapter (adapter.adapters.Adapter):
                         if debug_0_debug or debug_1_verbose:
                             self.delay(0.4)
                     except serial.SerialException as e:
+                        self.state_arduinoConfigured = "undef"
                         logger.error("{n:s}: close serial line".format(n=self.name))
-                        self.ser.close()
-                        nextState = self.START
+                        self.stateMachine.serialError()
                     except Exception as e:
+                        self.state_arduinoConfigured = "undef"
                         traceback.print_exc()
-                        self.ser.close()
-                        nextState = self.START
+                        self.stateMachine.serialError()
             #
+        try:
             if show:
-                if self.state != nextState:
-                    logger.info("{n:s}: state ({s:d}) --> ({ns:d})".format(n=self.name,s=self.state, ns=nextState))
+                logger.info("serial out: {l:s}".format( l='disconnect' )) 
+            self.ser.write("disconnect" +"\n");
+            self.ser.flush()
+        except Exception as e:
+            pass
+                
+        logger.debug("_runSend %", "end")
+
+    
+    def actionStartThreads(self):
+        """  success
+            fail """
+        self._stopped = False
+        self.threadReceive = threading.Thread(target=self._runReceive)
+        self.threadReceive.setName("receive")
+        self.threadReceive.start()
+    
+        self.threadSend = threading.Thread(target=self._runSend)
+        self.threadSend.setName("send")
+        self.threadSend.start()
+    
+        return "success" 
+    
+    def actionStopThreads(self):
+        self._stopped = True
+
+        self.threadReceive.join(0.2)
+        self.threadSend.join(0.2)
+        
+        if self.threadReceive.isAlive():
+            logger.error("receive thread not stopped !")
+        if self.threadSend.isAlive():
+            logger.error("send thread not stopped !")
+        return "success" 
+    
+    def checkPosix(self):
+        """  posix 
+             noposix  """
+        if os.name == 'posix':
+            return "posix"
+        return 'noposix'
+
+    ##
+    ## ------ states for the connection handling -----------------------------
+    ##
+    class StateTimer:
+        def start(self, t, statemachine):
+            self.stateMachine = statemachine
+            self.t = t
+            self.stopped = False
+            self.thread1 = threading.Thread(target=self.runTimer)
+            self.thread1.setName("timer")
+            self.thread1.start()
+            
+        def runTimer(self):
+            tx = 0
+            while tx < self.t:
+                if self.stopped: break
+                time.sleep(0.1)
+                tx += 0.1
+            if not self.stopped: self.stateMachine.addEvent("timeout")     
+    
+        def stop(self):
+            self.stopped = True
+                
+    class STATE:
+        def __init__(self):
+            self.timer = UNO_Adapter.StateTimer()
+            
+        stateMachine = None
+        parent = None
+        
+        def entry(self):
+            pass
+        def exit(self):
+            pass
+        
+        def start(self):
+            logger.error(self.name(), "start() not handled")
+            return None
+        def disconnectEvent(self):
+            logger.error(self.name(), "disconnectEvent() not handled")
+            return None
+        
+        def stop(self):
+            logger.error(self.name(),"stop() not handled")
+            return None
+        def serialError(self):
+            logger.error(self.name(),"serialError() not handled")
+            return None
+        def success(self):
+            logger.error(self.name(),"success() not handled")
+            return None
+                
+        def startTimer(self, t):
+            self.timer.start(t, self.stateMachine)
+        def stopTimer(self):
+            self.timer.stop()
+            
+        def name(self):
+            return self.__class__.__name__
+        
+    class START ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
                     
-            self.state = nextState
-            # end while
-                     
-        if self.state == self.CONNECTED:
-            self.state = self.STOPPED
-            self.ser.close()
-            
-        if debug_0_debug:
-            print("run_queueHandler() stopped")
-            
-    def run(self):
-        """read data from serial line """
+        def start(self):
+            return UNO_Adapter.CONNECTING()
+    
+    class CONNECTING ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
         
-        if debug_0_debug:
-            print("run()")
+        def entry(self):
+            res = self.parent.actionConnect(log=True)
+            self.stateMachine.addEvent(res)
+    
+        def stop(self):
+            return UNO_Adapter.STOP()
+                
+        def success(self):
+            if "posix" == self.parent.checkPosix():
+                return UNO_Adapter.LOCK()
+            return UNO_Adapter.CONNECTED()
         
-        while not self.stopped():
-            if self.state == self.CONNECTED or self.state == self.CONFIGURED:
+        def fail(self):
+            return UNO_Adapter.WAIT_START()
+        
+    class CONNECTING2 ( CONNECTING):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
+        
+        def entry(self):
+            res = self.parent.actionConnect(log = False)
+            self.stateMachine.addEvent(res)
+    
+        
+    
+    class LOCK ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
+
+        def entry(self):
+            res = self.parent.actionLock()
+            self.stateMachine.addEvent(res)
+            
+        def success(self):
+            return UNO_Adapter.CONNECTED()
+        
+        def stop(self):
+            self.parent.actionDisconnect()
+            return UNO_Adapter.STOP()
+        
+        def fail(self):
+            return UNO_Adapter.WAIT_LOCK()
+        
+    class LOCK_RETRY ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
+
+        def entry(self):
+            res = self.parent.actionLock()
+            self.stateMachine.addEvent(res)
+            
+        def success(self):
+            return UNO_Adapter.CONNECTED()
+        
+        def fail(self):
+            return UNO_Adapter.CONNECTING()
+        
+        def stop(self):
+            self.parent.actionDisconnect()
+            return UNO_Adapter.STOP()
+    
+        def exit(self):
+            self.parent.Disconnect()
+        
+    class CONNECTED ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
+        
+        def entry(self):
+            self.parent.actionStartThreads()
+        
+        def exit(self):
+            self.parent.actionStopThreads()
+            self.parent.actionDisconnect()
+            
+        def serialError(self):
+            self.parent.actionReportDisconnect()
+            return UNO_Adapter.WAIT_START()
+        
+        def disconnectEvent(self):
+            self.parent.actionDisconnectEvent()
+            return None
+        
+        def stop(self):
+            return UNO_Adapter.STOP()
+        
+    class STOP ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
+        
+        def start(self):
+            return UNO_Adapter.CONNECTING()
+        
+    class WAIT_START ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
+        
+        def entry(self):
+            self.startTimer(1.0)
+        
+        def exit(self):
+            self.stopTimer()
+    
+        def timeout(self):
+            return UNO_Adapter.CONNECTING2()
+        
+        def stop(self):
+            return UNO_Adapter.STOP()
+        
+    class WAIT_LOCK ( STATE):
+        def __init__(self):
+            UNO_Adapter.STATE.__init__(self)
+        
+        def entry(self):
+            self.startTimer(0.3)
+        
+        def exit(self):
+            self.stopTimer()
+    
+        def timeout(self):
+            return UNO_Adapter.LOCK_RETRY()
+        
+        def stop(self):
+            self.parent.actionDisconnect()
+            return UNO_Adapter.STOP()
+    
+    class StateMachine:
+        state = None
+        
+        def __init__(self, parent):
+            self.parent = parent
+            self.state = UNO_Adapter.START()
+            self.state.parent = parent
+            self.queue = helper.abstractQueue.AbstractQueue()
+        
+        def run_stateQueueHandler(self):
+            while not self.stopQueueHandler:
+                s = ""
                 try:
-                    line = self.ser.readline()
-                except serial.SerialException as e:
-                    self.ser.close()
-                    self.state = self.START
+                    s = self.queue.get(block=True, timeout=0.1)
+                except:
                     continue
-                except Exception as e:
-                    traceback.print_exc()
-                    continue
+                # print("event", s)
+                if s == 'start': self._handle( s, self.state.start())
+                elif s == 'stop': self._handle( s, self.state.stop())
+                elif s == 'timeout': self._handle( s, self.state.timeout())
+                elif s == 'disconnectEvent': self._handle( s, self.state.disconnectEvent())
+                elif s == 'success': self._handle( s, self.state.success())
+                elif s == 'fail': self._handle( s, self.state.fail())
+                elif s == 'serialError': self._handle( s, self.state.serialError())
+                else: 
+                    logger.error("no matching event found ", s)
                 
-                if ( line == ''):
-                    continue 
-                
-                line = line.rstrip()
-                if show or debug_0_debug or debug_1_verbose:
-                    with helper.logging.LoggingContext(logger, level=logging.DEBUG):
-                        logger.info("serial  in: {l:s}".format( l=line )) 
-                    
-                if line.startswith( 'config?' ):
-                    if show: print("found config request")
-                    
-                    #if debug_0_debug:
-                    #    self._queue_put_prio("help")
-                        
-                    if debug_0_debug or debug_1_verbose or debug_2_blink:    
-                        xdebug = 0
-                        if debug_0_debug:
-                            xdebug |= 1
-                        if debug_1_verbose:
-                            xdebug |= 2 
-                        if debug_2_blink:
-                            xdebug |= 4
-                        self._queue_put_prio("cdebug:{data:04x}".format(data= xdebug))
-                        
-                    self._queue_put_prio("cversion?")
-                    
-                    self._queue_put_prio("cident?")
-                    #self.queue.put("cident:NANO_000")
-                    
-                    if self._analog_analog_inputs != 0:
-                        self._queue_put_prio("caain:{data:04x}".format(data=self._analog_analog_inputs))  
-                    
-                    if self._analog_digital_inputs != 0:
-                        self._queue_put_prio("cadin:{data:04x}".format(data=self._analog_digital_inputs))  
-                    
-                    if self._analog_digital_input_pullups != 0:
-                        self._queue_put_prio("cadinp:{data:04x}".format(data=self._analog_digital_input_pullups))  
-                    
-                    if self._analog_digital_outputs != 0:
-                        self._queue_put_prio("cadout:{data:04x}".format(data=self._analog_digital_outputs))
-                    
-                    if self._digital_inputs != 0:  
-                        self._queue_put_prio("cdin:{data:04x}".format(data=self._digital_inputs))
-                    
-                    if self._digital_input_pullups != 0:  
-                        self._queue_put_prio("cdinp:{data:04x}".format(data=self._digital_input_pullups))
-                    
-                    if self._digital_outputs != 0:
-                        self._queue_put_prio("cdout:{data:04x}".format(data=self._digital_outputs))
-                    
-                    if self._digital_pwms != 0:
-                        self._queue_put_prio("cdpwm:{data:04x}".format(data=self._digital_pwms))
-                    
-                    if self._digital_servos != 0:   
-                        self._queue_put_prio("cdservo:{data:04x}".format(data=self._digital_servos))
-                    
-                    self._queue_put_prio("#CONFIGURED")
-                    
-                elif line.startswith( 'arduino' ):
-                    # ignore 'arduino sending@115200 Bd'
-                    # ignore 'arduinoUno, version 2017-01-27'
-                    pass
-                elif line.startswith( 'ident:' ):
-                    pass
-                #
-                elif line.startswith( 'v:' ):
-                    pass
-                #
-                elif line.startswith( 'ai' ):
-                    x = line[2:].split(',')
-                    port  = x[0]
-                    value = x[1]
-                    # print("port", port, "value", value)
-                    self.sendValueByName( 'outputA' + port,  value)
-                #
-                elif line.startswith( 'i' ):
-                    x = line[1:].split(',')
-                    port  = x[0]
-                    value = x[1]
-                    # print("port", port, "value", value)
-                    self.sendValueByName( 'outputD' + port,  value)
-                #
-                elif line.startswith( 'a' ):
-                    try:
-                        x = line[1:].split(',')
-                        port  = x[0]
-                        value = x[1]
-                        # print("port", port, "value", value)
-                        self.sendValueByName( 'outputA' + port,  value)
-                    except IndexError:
-                        print("IndexError")
-                #
-                elif line.startswith( 'e:' ):
-                    logger.info("error count " + line)
-                else:
-                    logger.info("undefined: " + line)
+        def _start(self):
+            self.queue = helper.abstractQueue.AbstractQueue()
             
-            else:
-                self.delay(0.05)
+            self.stopQueueHandler = False
+            self.thread1 = threading.Thread(target=self.run_stateQueueHandler)
+            self.thread1.setName("queue")
+            self.thread1.start()
+            
+        def _stop(self):
+            self.stopQueueHandler = True
+            self.thread1.join(0.2)
+            if self.thread1.isAlive():
+                logger.error("Error: thread {n:s}  not stopped".format(n=self.thread1.getName()))
+                
+        def addEvent(self, event):
+            self.queue.put(event)
+                
+        def start(self):
+            self.addEvent("start")
+            
+        def disconnectEvent(self):
+            self.addEvent("disconnectEvent")
+            
+        def stop(self):
+            self.addEvent("stop")
+            
+        def serialError(self):
+            self.addEvent("serialError")
+            
+        def _handle(self, event,  newState):
+            if newState == None:
+                return
+                
+            stateName = self.state.name()
+            newStateName = newState.name()
+            
+            if logger.isEnabledFor(logging.INFO):
+                logger.info( '{f:s} --[{s:s}]--> {t:s}'.format(f=stateName,s=str(event),t=newStateName ) )
+            if newState != self.state:
+                self.state.exit()
+                self.state = newState
+                self.state.stateMachine = self
+                self.state.parent = self.parent
+                self.state.entry()
+           
+        def setActive (self, state):
+            if debug_0_debug:
+                print(self.name, "setActive", state)
+            if state:
+                pass
+                
+            adapter.adapters.Adapter.setActive(self, state)
+            if state:
+                self.thread1 = threading.Thread(target=self.run_queueHandler)
+                self.thread1.setName(self.name+"queue")
+                self.thread1.start()
+                pass
+            #print(self.name + ": setActibe finished")
+    
+    
+    
                     
     def command(self, value):
         """low level command interface for arduino."""

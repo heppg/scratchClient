@@ -40,6 +40,7 @@
 # changes:
 # 
 changes = [
+'2017-02-10 config tool to edit UNO_Adapter xml config files included.',    
 '2017-01-26 minor changes in log messages on scratch connection.',  
 '2017-01-16 improved connection handling and last-value in arduinoUNO adapter.',  
 '2017-01-10 all queue definitions wrapped by a helper class to fix python2/3 compatibility.',  

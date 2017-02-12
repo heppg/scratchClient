@@ -40,7 +40,7 @@ class AbstractQueue:
         if sys.version_info.major == 3:
             self.queue = queue.Queue()
             self.EmptyException = queue.Empty
-            
+    
     def put(self, v):
         self.queue.put(v)
 
@@ -71,6 +71,7 @@ class PriorityQueue:
             self.queue = queue.PriorityQueue()
             self.EmptyException = queue.Empty
             
+                
     def put(self, prio, v):
         self.queue.put( (prio,v) )
 

@@ -19,6 +19,7 @@
     This program is a remote control of port pins, pwm, analog from serial line.
     Designed for Arduino UNO or Nano.
 
+    version 2017-02-12 added disconnect command
     version 2017-02-01 optimized protocol handling state machine
     version 2017-01-27 optimized protocol, allow to reduce ':'
     version 2017-01-12 rework on Servo hotfix, added additional state '1' for initialization
@@ -33,7 +34,7 @@
 #include <Servo.h>
 #include <EEPROM.h>
 
-char version[] = "arduinoUno, version 2017-02-01";
+char version[] = "arduinoUno, version 2017-02-12";
 
 
 #define FALSE (1==0)
@@ -51,6 +52,7 @@ unsigned long debug = 0L;
 
 #define STATEMACHINE_EVENT_START  10
 #define STATEMACHINE_EVENT_CONFIG  20
+#define STATEMACHINE_EVENT_DISCONNECT 30
 
 #define STATEMACHINE_EVENT_TIMEOUT 1000
 
@@ -274,6 +276,10 @@ void statemachine_2000_entry() {
   timeoutEnable = FALSE;
   blinkModeSlow();
 }
+void statemachine_2000_exit() {
+  timeoutEnable = FALSE;
+  blinkModeFast();
+}
 
 void stateMachine(int event) {
 
@@ -286,6 +292,9 @@ void stateMachine(int event) {
     }
     if ( event == STATEMACHINE_EVENT_CONFIG) {
       Serial.println( F("STATEMACHINE_EVENT_CONFIG") );
+    }
+    if ( event == STATEMACHINE_EVENT_DISCONNECT) {
+      Serial.println( F("STATEMACHINE_EVENT_DISCONNECT") );
     }
   }
 
@@ -340,7 +349,15 @@ void stateMachine(int event) {
       }
       break;
 
+    // Configuration data are available
     case 2000:
+      switch (event) {
+        case STATEMACHINE_EVENT_DISCONNECT:
+          STATEMACHINE_waitState = 1000;
+          statemachine_2000_exit();
+          statemachine_1000_entry();
+          break;
+      }
       break;
   }
 }
@@ -688,26 +705,26 @@ const char helpText[] PROGMEM =
   "arduino requests configuration with 'config?' on reset\n"
   "\n"
   "configuration commands start with 'c'\n"
-  " cdebug:<data> debug settings, data are hex (0,1,2,3)\n"
-  " cr: dummy request, just get a newline and clean buffer\n"
-  " cversion? request version string\n"
-  " cerr?     request error count for parser\n"
-  " cident?   request idcode\n"
-  " cident:<char16> write idcode\n"
+  " cdebug:<data>        debug settings, data are hex (0,1,2,3)\n"
+  " cr:                  dummy request, just get a newline and clean buffer\n"
+  " cversion?            request version string\n"
+  " cerr?                request error count for parser\n"
+  " cident?              request idcode\n"
+  " cident:<char16>      write idcode\n"
   "\n"
   "char16 = [A-Za-z][A-Za-z0-9-_.]{1,15} \n"
   "\n"
 
-  " cdin:<data> digital inputs, data are hex\n"
-  " cdinp:<data> digital inputs, pullup enabled, data are hex\n"
-  " cdout:<data> digital outputs, data are hex\n"
-  " cdpwm:<data> digital pwm, data are hex\n"
-  " cdservo:<data> digital servo, data are hex\n"
+  " cdin:<data>          digital inputs, data are hex\n"
+  " cdinp:<data>         digital inputs, pullup enabled, data are hex\n"
+  " cdout:<data>         digital outputs, data are hex\n"
+  " cdpwm:<data>         digital pwm, data are hex\n"
+  " cdservo:<data>       digital servo, data are hex\n"
 
-  " caain:<data> analog line, data are hex [a0..a5]\n"
-  " cadin:<data> analog line, digital input [a0..a5]\n"
-  " cadinp:<data> analog line, digital input, pullup [a0..a5]\n"
-  " cadout:<data> analog line, digital output\n"
+  " caain:<data>         analog line, data are hex [a0..a5]\n"
+  " cadin:<data>         analog line, digital input [a0..a5]\n"
+  " cadinp:<data>        analog line, digital input, pullup [a0..a5]\n"
+  " cadout:<data>        analog line, digital output\n"
   "data give bit patterns for IO pins\n"
   "\n"
   "Commands to set values in arduino\n"
@@ -723,12 +740,16 @@ const char helpText[] PROGMEM =
   " s<port>,<value>      write servo, shortcut\n"
   "\n"
   "Values reported from arduino to host\n"
-  " v:<version>       arduino reports version\n"
-  " ident:<char16>    arduino reports ident from EEPROM\n"
-  " e:<errors>        arduino reports number of errors (decimal)\n"
-  " a<port>,<value>   arduino reports analog input\n"
-  " i<port>,<value>   arduino reports digital input\n"
-  " ai<port>,<value>  arduino reports digital input on analog line\n";
+  " v:<version>          arduino reports version\n"
+  " ident:<char16>       arduino reports ident from EEPROM\n"
+  " e:<errors>           arduino reports number of errors (decimal)\n"
+  " a<port>,<value>      arduino reports analog input\n"
+  " i<port>,<value>      arduino reports digital input\n"
+  " ai<port>,<value>     arduino reports digital input on analog line\n"
+  "\n"
+  "Disconnect\n"
+  " disconnect           stop processing, start asking for config\n"
+  "\n";
 
 unsigned long errorCount = 0;
 
@@ -743,6 +764,10 @@ void printDebug_cdebug() {
 }
 void printDebug_cdinp() {
   Serial.print( F("cdinp=") );
+  Serial.println(data, HEX);
+}
+void printDebug_cdin() {
+  Serial.print( F("cdin=") );
   Serial.println(data, HEX);
 }
 void printDebug_cdout() {
@@ -829,7 +854,7 @@ void loop() {
     // for the incoming char stream.
     //
     //--BEGIN
-  // generated code 2017-02-01 19:58:46
+  // generated code 2017-02-12 17:41:37
   switch( state) { 
                                         // --0--
     case 0:                     // --0-- CAS[          0--( c == 'o' )-->1 ]
@@ -864,109 +889,115 @@ void loop() {
           state = 81; 
         }
                                         // --5--
-        else if  ( c == 'v' )        // --5-- CAS[          0--( c == 'v' )-->225 ]
+        else if  ( c == 'd' )        // --5-- CAS[          0--( c == 'd' )-->225 ]
         {
            
           state = 225; 
         }
                                         // --6--
+        else if  ( c == 'v' )        // --6-- CAS[          0--( c == 'v' )-->235 ]
+        {
+           
+          state = 235; 
+        }
+                                        // --7--
         else {
-          state = 246;                // --6-- ERROR 
+          state = 256;                // --7-- ERROR 
         }
       } 
     break; 
-    case 1:                     // --6-- CAS[          1--( c == ':' )-->2 ]
+    case 1:                     // --7-- CAS[          1--( c == ':' )-->2 ]
       { 
-        if  ( c == ':' )        // --6-- CAS[          1--( c == ':' )-->2 ]
+        if  ( c == ':' )        // --7-- CAS[          1--( c == ':' )-->2 ]
         {
            
           state = 2; 
         }
-                                        // --7--
-        else if  ( isDigit(c) )        // --7-- CAS[          1--( isDigit(c) )-->9 ]
+                                        // --8--
+        else if  ( isDigit(c) )        // --8-- CAS[          1--( isDigit(c) )-->9 ]
         {
           port = valueDecimal(c); 
           state = 9; 
         }
-                                        // --8--
-        else if  ( c == 'a' )        // --8-- CAS[          1--( c == 'a' )-->15 ]
+                                        // --9--
+        else if  ( c == 'a' )        // --9-- CAS[          1--( c == 'a' )-->15 ]
         {
            
           state = 15; 
         }
-                                        // --9--
+                                        // --10--
         else {
-          state = 246;                // --9-- ERROR 
+          state = 256;                // --10-- ERROR 
         }
       } 
     break; 
-    case 2:                     // --9-- CAS[          2--( isDigit(c) )-->3 ]
+    case 2:                     // --10-- CAS[          2--( isDigit(c) )-->3 ]
       { 
-        if  ( isDigit(c) )        // --9-- CAS[          2--( isDigit(c) )-->3 ]
+        if  ( isDigit(c) )        // --10-- CAS[          2--( isDigit(c) )-->3 ]
         {
           port = valueDecimal(c); 
           state = 3; 
         }
-                                        // --10--
+                                        // --11--
         else {
-          state = 246;                // --10-- ERROR 
+          state = 256;                // --11-- ERROR 
         }
       } 
     break; 
-    case 3:                     // --10-- CAS[          3--( isDigit(c) )-->4 ]
+    case 3:                     // --11-- CAS[          3--( isDigit(c) )-->4 ]
       { 
-        if  ( isDigit(c) )        // --10-- CAS[          3--( isDigit(c) )-->4 ]
+        if  ( isDigit(c) )        // --11-- CAS[          3--( isDigit(c) )-->4 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 4; 
         }
-                                        // --11--
-        else if  ( c == ',' )        // --11-- CAS[          3--( c == ',' )-->5 ]
-        {
-           
-          state = 5; 
-        }
                                         // --12--
-        else {
-          state = 246;                // --12-- ERROR 
-        }
-      } 
-    break; 
-    case 4:                     // --12-- CAS[          4--( c == ',' )-->5 ]
-      { 
-        if  ( c == ',' )        // --12-- CAS[          4--( c == ',' )-->5 ]
+        else if  ( c == ',' )        // --12-- CAS[          3--( c == ',' )-->5 ]
         {
            
           state = 5; 
         }
                                         // --13--
         else {
-          state = 246;                // --13-- ERROR 
+          state = 256;                // --13-- ERROR 
         }
       } 
     break; 
-    case 5:                     // --13-- CAS[          5--( isDigit(c) )-->6 ]
+    case 4:                     // --13-- CAS[          4--( c == ',' )-->5 ]
       { 
-        if  ( isDigit(c) )        // --13-- CAS[          5--( isDigit(c) )-->6 ]
+        if  ( c == ',' )        // --13-- CAS[          4--( c == ',' )-->5 ]
+        {
+           
+          state = 5; 
+        }
+                                        // --14--
+        else {
+          state = 256;                // --14-- ERROR 
+        }
+      } 
+    break; 
+    case 5:                     // --14-- CAS[          5--( isDigit(c) )-->6 ]
+      { 
+        if  ( isDigit(c) )        // --14-- CAS[          5--( isDigit(c) )-->6 ]
         {
           value = valueDecimal(c); 
           state = 6; 
         }
-                                        // --14--
+                                        // --15--
         else {
-          state = 246;                // --14-- ERROR 
+          state = 256;                // --15-- ERROR 
         }
       } 
     break; 
-    case 6:                     // --14-- CAS[          6--( isDigit(c) )-->7 ]
+    case 6:                     // --15-- CAS[          6--( isDigit(c) )-->7 ]
       { 
-        if  ( isDigit(c) )        // --14-- CAS[          6--( isDigit(c) )-->7 ]
+        if  ( isDigit(c) )        // --15-- CAS[          6--( isDigit(c) )-->7 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 7; 
         }
-                                        // --15--
-        else if  ( c == '\n' )        // --15-- CAS[          6--( c == '\n' )-->245 ]
+                                        // --16--
+        else if  ( c == '\n' )        // --16-- CAS[          6--( c == '\n' )-->255 ]
         {
            
               {
@@ -981,48 +1012,23 @@ void loop() {
                   }
               } 
                
-          state = 245; 
+          state = 255; 
         }
-                                        // --16--
+                                        // --17--
         else {
-          state = 246;                // --16-- ERROR 
+          state = 256;                // --17-- ERROR 
         }
       } 
     break; 
-    case 7:                     // --16-- CAS[          7--( isDigit(c) )-->8 ]
+    case 7:                     // --17-- CAS[          7--( isDigit(c) )-->8 ]
       { 
-        if  ( isDigit(c) )        // --16-- CAS[          7--( isDigit(c) )-->8 ]
+        if  ( isDigit(c) )        // --17-- CAS[          7--( isDigit(c) )-->8 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 8; 
         }
-                                        // --17--
-        else if  ( c == '\n' )        // --17-- CAS[          7--( c == '\n' )-->245 ]
-        {
-           
-              {
-                  if (debug & 1){
-                      printDebug_o_port_value();
-                  }
-                  if ( value == 0){
-                      digitalWrite(port, LOW);
-                  }
-                  else {
-                     digitalWrite(port, HIGH);
-                  }
-              } 
-               
-          state = 245; 
-        }
                                         // --18--
-        else {
-          state = 246;                // --18-- ERROR 
-        }
-      } 
-    break; 
-    case 8:                     // --18-- CAS[          8--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --18-- CAS[          8--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --18-- CAS[          7--( c == '\n' )-->255 ]
         {
            
               {
@@ -1037,68 +1043,93 @@ void loop() {
                   }
               } 
                
-          state = 245; 
+          state = 255; 
         }
                                         // --19--
         else {
-          state = 246;                // --19-- ERROR 
+          state = 256;                // --19-- ERROR 
         }
       } 
     break; 
-    case 9:                     // --19-- CAS[          9--( isDigit(c) )-->10 ]
+    case 8:                     // --19-- CAS[          8--( c == '\n' )-->255 ]
       { 
-        if  ( isDigit(c) )        // --19-- CAS[          9--( isDigit(c) )-->10 ]
+        if  ( c == '\n' )        // --19-- CAS[          8--( c == '\n' )-->255 ]
+        {
+           
+              {
+                  if (debug & 1){
+                      printDebug_o_port_value();
+                  }
+                  if ( value == 0){
+                      digitalWrite(port, LOW);
+                  }
+                  else {
+                     digitalWrite(port, HIGH);
+                  }
+              } 
+               
+          state = 255; 
+        }
+                                        // --20--
+        else {
+          state = 256;                // --20-- ERROR 
+        }
+      } 
+    break; 
+    case 9:                     // --20-- CAS[          9--( isDigit(c) )-->10 ]
+      { 
+        if  ( isDigit(c) )        // --20-- CAS[          9--( isDigit(c) )-->10 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 10; 
         }
-                                        // --20--
-        else if  ( c == ',' )        // --20-- CAS[          9--( c == ',' )-->11 ]
-        {
-           
-          state = 11; 
-        }
                                         // --21--
-        else {
-          state = 246;                // --21-- ERROR 
-        }
-      } 
-    break; 
-    case 10:                     // --21-- CAS[          10--( c == ',' )-->11 ]
-      { 
-        if  ( c == ',' )        // --21-- CAS[          10--( c == ',' )-->11 ]
+        else if  ( c == ',' )        // --21-- CAS[          9--( c == ',' )-->11 ]
         {
            
           state = 11; 
         }
                                         // --22--
         else {
-          state = 246;                // --22-- ERROR 
+          state = 256;                // --22-- ERROR 
         }
       } 
     break; 
-    case 11:                     // --22-- CAS[          11--( isDigit(c) )-->12 ]
+    case 10:                     // --22-- CAS[          10--( c == ',' )-->11 ]
       { 
-        if  ( isDigit(c) )        // --22-- CAS[          11--( isDigit(c) )-->12 ]
+        if  ( c == ',' )        // --22-- CAS[          10--( c == ',' )-->11 ]
+        {
+           
+          state = 11; 
+        }
+                                        // --23--
+        else {
+          state = 256;                // --23-- ERROR 
+        }
+      } 
+    break; 
+    case 11:                     // --23-- CAS[          11--( isDigit(c) )-->12 ]
+      { 
+        if  ( isDigit(c) )        // --23-- CAS[          11--( isDigit(c) )-->12 ]
         {
           value = valueDecimal(c); 
           state = 12; 
         }
-                                        // --23--
+                                        // --24--
         else {
-          state = 246;                // --23-- ERROR 
+          state = 256;                // --24-- ERROR 
         }
       } 
     break; 
-    case 12:                     // --23-- CAS[          12--( isDigit(c) )-->13 ]
+    case 12:                     // --24-- CAS[          12--( isDigit(c) )-->13 ]
       { 
-        if  ( isDigit(c) )        // --23-- CAS[          12--( isDigit(c) )-->13 ]
+        if  ( isDigit(c) )        // --24-- CAS[          12--( isDigit(c) )-->13 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 13; 
         }
-                                        // --24--
-        else if  ( c == '\n' )        // --24-- CAS[          12--( c == '\n' )-->245 ]
+                                        // --25--
+        else if  ( c == '\n' )        // --25-- CAS[          12--( c == '\n' )-->255 ]
         {
            
           {
@@ -1113,48 +1144,23 @@ void loop() {
               }
           } 
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --25--
+                                        // --26--
         else {
-          state = 246;                // --25-- ERROR 
+          state = 256;                // --26-- ERROR 
         }
       } 
     break; 
-    case 13:                     // --25-- CAS[          13--( isDigit(c) )-->14 ]
+    case 13:                     // --26-- CAS[          13--( isDigit(c) )-->14 ]
       { 
-        if  ( isDigit(c) )        // --25-- CAS[          13--( isDigit(c) )-->14 ]
+        if  ( isDigit(c) )        // --26-- CAS[          13--( isDigit(c) )-->14 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 14; 
         }
-                                        // --26--
-        else if  ( c == '\n' )        // --26-- CAS[          13--( c == '\n' )-->245 ]
-        {
-           
-          {
-              if (debug & 1){
-                  printDebug_o_port_value();
-              }
-              if ( value == 0){
-                  digitalWrite(port, LOW);
-              }
-              else {
-                 digitalWrite(port, HIGH);
-              }
-          } 
-           
-          state = 245; 
-        }
                                         // --27--
-        else {
-          state = 246;                // --27-- ERROR 
-        }
-      } 
-    break; 
-    case 14:                     // --27-- CAS[          14--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --27-- CAS[          14--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --27-- CAS[          13--( c == '\n' )-->255 ]
         {
            
           {
@@ -1169,100 +1175,125 @@ void loop() {
               }
           } 
            
-          state = 245; 
+          state = 255; 
         }
                                         // --28--
         else {
-          state = 246;                // --28-- ERROR 
+          state = 256;                // --28-- ERROR 
         }
       } 
     break; 
-    case 15:                     // --28-- CAS[          15--( c == ':' )-->16 ]
+    case 14:                     // --28-- CAS[          14--( c == '\n' )-->255 ]
       { 
-        if  ( c == ':' )        // --28-- CAS[          15--( c == ':' )-->16 ]
+        if  ( c == '\n' )        // --28-- CAS[          14--( c == '\n' )-->255 ]
+        {
+           
+          {
+              if (debug & 1){
+                  printDebug_o_port_value();
+              }
+              if ( value == 0){
+                  digitalWrite(port, LOW);
+              }
+              else {
+                 digitalWrite(port, HIGH);
+              }
+          } 
+           
+          state = 255; 
+        }
+                                        // --29--
+        else {
+          state = 256;                // --29-- ERROR 
+        }
+      } 
+    break; 
+    case 15:                     // --29-- CAS[          15--( c == ':' )-->16 ]
+      { 
+        if  ( c == ':' )        // --29-- CAS[          15--( c == ':' )-->16 ]
         {
            
           state = 16; 
         }
-                                        // --29--
-        else if  ( isDigit(c) )        // --29-- CAS[          15--( isDigit(c) )-->23 ]
+                                        // --30--
+        else if  ( isDigit(c) )        // --30-- CAS[          15--( isDigit(c) )-->23 ]
         {
           port = valueDecimal(c); 
           state = 23; 
         }
-                                        // --30--
+                                        // --31--
         else {
-          state = 246;                // --30-- ERROR 
+          state = 256;                // --31-- ERROR 
         }
       } 
     break; 
-    case 16:                     // --30-- CAS[          16--( isDigit(c) )-->17 ]
+    case 16:                     // --31-- CAS[          16--( isDigit(c) )-->17 ]
       { 
-        if  ( isDigit(c) )        // --30-- CAS[          16--( isDigit(c) )-->17 ]
+        if  ( isDigit(c) )        // --31-- CAS[          16--( isDigit(c) )-->17 ]
         {
           port = valueDecimal(c); 
           state = 17; 
         }
-                                        // --31--
+                                        // --32--
         else {
-          state = 246;                // --31-- ERROR 
+          state = 256;                // --32-- ERROR 
         }
       } 
     break; 
-    case 17:                     // --31-- CAS[          17--( isDigit(c) )-->18 ]
+    case 17:                     // --32-- CAS[          17--( isDigit(c) )-->18 ]
       { 
-        if  ( isDigit(c) )        // --31-- CAS[          17--( isDigit(c) )-->18 ]
+        if  ( isDigit(c) )        // --32-- CAS[          17--( isDigit(c) )-->18 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 18; 
         }
-                                        // --32--
-        else if  ( c == ',' )        // --32-- CAS[          17--( c == ',' )-->19 ]
-        {
-           
-          state = 19; 
-        }
                                         // --33--
-        else {
-          state = 246;                // --33-- ERROR 
-        }
-      } 
-    break; 
-    case 18:                     // --33-- CAS[          18--( c == ',' )-->19 ]
-      { 
-        if  ( c == ',' )        // --33-- CAS[          18--( c == ',' )-->19 ]
+        else if  ( c == ',' )        // --33-- CAS[          17--( c == ',' )-->19 ]
         {
            
           state = 19; 
         }
                                         // --34--
         else {
-          state = 246;                // --34-- ERROR 
+          state = 256;                // --34-- ERROR 
         }
       } 
     break; 
-    case 19:                     // --34-- CAS[          19--( isDigit(c) )-->20 ]
+    case 18:                     // --34-- CAS[          18--( c == ',' )-->19 ]
       { 
-        if  ( isDigit(c) )        // --34-- CAS[          19--( isDigit(c) )-->20 ]
+        if  ( c == ',' )        // --34-- CAS[          18--( c == ',' )-->19 ]
+        {
+           
+          state = 19; 
+        }
+                                        // --35--
+        else {
+          state = 256;                // --35-- ERROR 
+        }
+      } 
+    break; 
+    case 19:                     // --35-- CAS[          19--( isDigit(c) )-->20 ]
+      { 
+        if  ( isDigit(c) )        // --35-- CAS[          19--( isDigit(c) )-->20 ]
         {
           value = valueDecimal(c); 
           state = 20; 
         }
-                                        // --35--
+                                        // --36--
         else {
-          state = 246;                // --35-- ERROR 
+          state = 256;                // --36-- ERROR 
         }
       } 
     break; 
-    case 20:                     // --35-- CAS[          20--( isDigit(c) )-->21 ]
+    case 20:                     // --36-- CAS[          20--( isDigit(c) )-->21 ]
       { 
-        if  ( isDigit(c) )        // --35-- CAS[          20--( isDigit(c) )-->21 ]
+        if  ( isDigit(c) )        // --36-- CAS[          20--( isDigit(c) )-->21 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 21; 
         }
-                                        // --36--
-        else if  ( c == '\n' )        // --36-- CAS[          20--( c == '\n' )-->245 ]
+                                        // --37--
+        else if  ( c == '\n' )        // --37-- CAS[          20--( c == '\n' )-->255 ]
         {
            
               {
@@ -1278,49 +1309,23 @@ void loop() {
                   }
               } 
                
-          state = 245; 
+          state = 255; 
         }
-                                        // --37--
+                                        // --38--
         else {
-          state = 246;                // --37-- ERROR 
+          state = 256;                // --38-- ERROR 
         }
       } 
     break; 
-    case 21:                     // --37-- CAS[          21--( isDigit(c) )-->22 ]
+    case 21:                     // --38-- CAS[          21--( isDigit(c) )-->22 ]
       { 
-        if  ( isDigit(c) )        // --37-- CAS[          21--( isDigit(c) )-->22 ]
+        if  ( isDigit(c) )        // --38-- CAS[          21--( isDigit(c) )-->22 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 22; 
         }
-                                        // --38--
-        else if  ( c == '\n' )        // --38-- CAS[          21--( c == '\n' )-->245 ]
-        {
-           
-              {
-                  if (debug & 1){
-                      printDebug_oa_port_value();
-                      
-                  }
-                  if ( value == 0){
-                      analogDigitalWrite(port, LOW);
-                  }
-                  else {
-                     analogDigitalWrite(port, HIGH);
-                  }
-              } 
-               
-          state = 245; 
-        }
                                         // --39--
-        else {
-          state = 246;                // --39-- ERROR 
-        }
-      } 
-    break; 
-    case 22:                     // --39-- CAS[          22--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --39-- CAS[          22--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --39-- CAS[          21--( c == '\n' )-->255 ]
         {
            
               {
@@ -1336,68 +1341,94 @@ void loop() {
                   }
               } 
                
-          state = 245; 
+          state = 255; 
         }
                                         // --40--
         else {
-          state = 246;                // --40-- ERROR 
+          state = 256;                // --40-- ERROR 
         }
       } 
     break; 
-    case 23:                     // --40-- CAS[          23--( isDigit(c) )-->24 ]
+    case 22:                     // --40-- CAS[          22--( c == '\n' )-->255 ]
       { 
-        if  ( isDigit(c) )        // --40-- CAS[          23--( isDigit(c) )-->24 ]
+        if  ( c == '\n' )        // --40-- CAS[          22--( c == '\n' )-->255 ]
+        {
+           
+              {
+                  if (debug & 1){
+                      printDebug_oa_port_value();
+                      
+                  }
+                  if ( value == 0){
+                      analogDigitalWrite(port, LOW);
+                  }
+                  else {
+                     analogDigitalWrite(port, HIGH);
+                  }
+              } 
+               
+          state = 255; 
+        }
+                                        // --41--
+        else {
+          state = 256;                // --41-- ERROR 
+        }
+      } 
+    break; 
+    case 23:                     // --41-- CAS[          23--( isDigit(c) )-->24 ]
+      { 
+        if  ( isDigit(c) )        // --41-- CAS[          23--( isDigit(c) )-->24 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 24; 
         }
-                                        // --41--
-        else if  ( c == ',' )        // --41-- CAS[          23--( c == ',' )-->25 ]
-        {
-           
-          state = 25; 
-        }
                                         // --42--
-        else {
-          state = 246;                // --42-- ERROR 
-        }
-      } 
-    break; 
-    case 24:                     // --42-- CAS[          24--( c == ',' )-->25 ]
-      { 
-        if  ( c == ',' )        // --42-- CAS[          24--( c == ',' )-->25 ]
+        else if  ( c == ',' )        // --42-- CAS[          23--( c == ',' )-->25 ]
         {
            
           state = 25; 
         }
                                         // --43--
         else {
-          state = 246;                // --43-- ERROR 
+          state = 256;                // --43-- ERROR 
         }
       } 
     break; 
-    case 25:                     // --43-- CAS[          25--( isDigit(c) )-->26 ]
+    case 24:                     // --43-- CAS[          24--( c == ',' )-->25 ]
       { 
-        if  ( isDigit(c) )        // --43-- CAS[          25--( isDigit(c) )-->26 ]
+        if  ( c == ',' )        // --43-- CAS[          24--( c == ',' )-->25 ]
+        {
+           
+          state = 25; 
+        }
+                                        // --44--
+        else {
+          state = 256;                // --44-- ERROR 
+        }
+      } 
+    break; 
+    case 25:                     // --44-- CAS[          25--( isDigit(c) )-->26 ]
+      { 
+        if  ( isDigit(c) )        // --44-- CAS[          25--( isDigit(c) )-->26 ]
         {
           value = valueDecimal(c); 
           state = 26; 
         }
-                                        // --44--
+                                        // --45--
         else {
-          state = 246;                // --44-- ERROR 
+          state = 256;                // --45-- ERROR 
         }
       } 
     break; 
-    case 26:                     // --44-- CAS[          26--( isDigit(c) )-->27 ]
+    case 26:                     // --45-- CAS[          26--( isDigit(c) )-->27 ]
       { 
-        if  ( isDigit(c) )        // --44-- CAS[          26--( isDigit(c) )-->27 ]
+        if  ( isDigit(c) )        // --45-- CAS[          26--( isDigit(c) )-->27 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 27; 
         }
-                                        // --45--
-        else if  ( c == '\n' )        // --45-- CAS[          26--( c == '\n' )-->245 ]
+                                        // --46--
+        else if  ( c == '\n' )        // --46-- CAS[          26--( c == '\n' )-->255 ]
         {
            
           {
@@ -1413,49 +1444,23 @@ void loop() {
               }
           } 
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --46--
+                                        // --47--
         else {
-          state = 246;                // --46-- ERROR 
+          state = 256;                // --47-- ERROR 
         }
       } 
     break; 
-    case 27:                     // --46-- CAS[          27--( isDigit(c) )-->28 ]
+    case 27:                     // --47-- CAS[          27--( isDigit(c) )-->28 ]
       { 
-        if  ( isDigit(c) )        // --46-- CAS[          27--( isDigit(c) )-->28 ]
+        if  ( isDigit(c) )        // --47-- CAS[          27--( isDigit(c) )-->28 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 28; 
         }
-                                        // --47--
-        else if  ( c == '\n' )        // --47-- CAS[          27--( c == '\n' )-->245 ]
-        {
-           
-          {
-              if (debug & 1){
-                  printDebug_oa_port_value();
-                  
-              }
-              if ( value == 0){
-                  analogDigitalWrite(port, LOW);
-              }
-              else {
-                 analogDigitalWrite(port, HIGH);
-              }
-          } 
-           
-          state = 245; 
-        }
                                         // --48--
-        else {
-          state = 246;                // --48-- ERROR 
-        }
-      } 
-    break; 
-    case 28:                     // --48-- CAS[          28--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --48-- CAS[          28--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --48-- CAS[          27--( c == '\n' )-->255 ]
         {
            
           {
@@ -1471,132 +1476,158 @@ void loop() {
               }
           } 
            
-          state = 245; 
+          state = 255; 
         }
                                         // --49--
         else {
-          state = 246;                // --49-- ERROR 
+          state = 256;                // --49-- ERROR 
         }
       } 
     break; 
-    case 29:                     // --49-- CAS[          29--( c == 'w' )-->30 ]
+    case 28:                     // --49-- CAS[          28--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'w' )        // --49-- CAS[          29--( c == 'w' )-->30 ]
+        if  ( c == '\n' )        // --49-- CAS[          28--( c == '\n' )-->255 ]
+        {
+           
+          {
+              if (debug & 1){
+                  printDebug_oa_port_value();
+                  
+              }
+              if ( value == 0){
+                  analogDigitalWrite(port, LOW);
+              }
+              else {
+                 analogDigitalWrite(port, HIGH);
+              }
+          } 
+           
+          state = 255; 
+        }
+                                        // --50--
+        else {
+          state = 256;                // --50-- ERROR 
+        }
+      } 
+    break; 
+    case 29:                     // --50-- CAS[          29--( c == 'w' )-->30 ]
+      { 
+        if  ( c == 'w' )        // --50-- CAS[          29--( c == 'w' )-->30 ]
         {
            
           state = 30; 
         }
-                                        // --50--
-        else if  ( c == ':' )        // --50-- CAS[          29--( c == ':' )-->39 ]
+                                        // --51--
+        else if  ( c == ':' )        // --51-- CAS[          29--( c == ':' )-->39 ]
         {
            
           state = 39; 
         }
-                                        // --51--
-        else if  ( isDigit(c) )        // --51-- CAS[          29--( isDigit(c) )-->46 ]
+                                        // --52--
+        else if  ( isDigit(c) )        // --52-- CAS[          29--( isDigit(c) )-->46 ]
         {
           port = valueDecimal(c); 
           state = 46; 
         }
-                                        // --52--
+                                        // --53--
         else {
-          state = 246;                // --52-- ERROR 
+          state = 256;                // --53-- ERROR 
         }
       } 
     break; 
-    case 30:                     // --52-- CAS[          30--( c == 'm' )-->31 ]
+    case 30:                     // --53-- CAS[          30--( c == 'm' )-->31 ]
       { 
-        if  ( c == 'm' )        // --52-- CAS[          30--( c == 'm' )-->31 ]
+        if  ( c == 'm' )        // --53-- CAS[          30--( c == 'm' )-->31 ]
         {
            
           state = 31; 
         }
-                                        // --53--
+                                        // --54--
         else {
-          state = 246;                // --53-- ERROR 
+          state = 256;                // --54-- ERROR 
         }
       } 
     break; 
-    case 31:                     // --53-- CAS[          31--( c == ':' )-->32 ]
+    case 31:                     // --54-- CAS[          31--( c == ':' )-->32 ]
       { 
-        if  ( c == ':' )        // --53-- CAS[          31--( c == ':' )-->32 ]
+        if  ( c == ':' )        // --54-- CAS[          31--( c == ':' )-->32 ]
         {
            
           state = 32; 
         }
-                                        // --54--
+                                        // --55--
         else {
-          state = 246;                // --54-- ERROR 
+          state = 256;                // --55-- ERROR 
         }
       } 
     break; 
-    case 32:                     // --54-- CAS[          32--( isDigit(c) )-->33 ]
+    case 32:                     // --55-- CAS[          32--( isDigit(c) )-->33 ]
       { 
-        if  ( isDigit(c) )        // --54-- CAS[          32--( isDigit(c) )-->33 ]
+        if  ( isDigit(c) )        // --55-- CAS[          32--( isDigit(c) )-->33 ]
         {
           port = valueDecimal(c); 
           state = 33; 
         }
-                                        // --55--
+                                        // --56--
         else {
-          state = 246;                // --55-- ERROR 
+          state = 256;                // --56-- ERROR 
         }
       } 
     break; 
-    case 33:                     // --55-- CAS[          33--( isDigit(c) )-->34 ]
+    case 33:                     // --56-- CAS[          33--( isDigit(c) )-->34 ]
       { 
-        if  ( isDigit(c) )        // --55-- CAS[          33--( isDigit(c) )-->34 ]
+        if  ( isDigit(c) )        // --56-- CAS[          33--( isDigit(c) )-->34 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 34; 
         }
-                                        // --56--
-        else if  ( c == ',' )        // --56-- CAS[          33--( c == ',' )-->35 ]
-        {
-           
-          state = 35; 
-        }
                                         // --57--
-        else {
-          state = 246;                // --57-- ERROR 
-        }
-      } 
-    break; 
-    case 34:                     // --57-- CAS[          34--( c == ',' )-->35 ]
-      { 
-        if  ( c == ',' )        // --57-- CAS[          34--( c == ',' )-->35 ]
+        else if  ( c == ',' )        // --57-- CAS[          33--( c == ',' )-->35 ]
         {
            
           state = 35; 
         }
                                         // --58--
         else {
-          state = 246;                // --58-- ERROR 
+          state = 256;                // --58-- ERROR 
         }
       } 
     break; 
-    case 35:                     // --58-- CAS[          35--( isDigit(c) )-->36 ]
+    case 34:                     // --58-- CAS[          34--( c == ',' )-->35 ]
       { 
-        if  ( isDigit(c) )        // --58-- CAS[          35--( isDigit(c) )-->36 ]
+        if  ( c == ',' )        // --58-- CAS[          34--( c == ',' )-->35 ]
+        {
+           
+          state = 35; 
+        }
+                                        // --59--
+        else {
+          state = 256;                // --59-- ERROR 
+        }
+      } 
+    break; 
+    case 35:                     // --59-- CAS[          35--( isDigit(c) )-->36 ]
+      { 
+        if  ( isDigit(c) )        // --59-- CAS[          35--( isDigit(c) )-->36 ]
         {
           value = valueDecimal(c); 
           state = 36; 
         }
-                                        // --59--
+                                        // --60--
         else {
-          state = 246;                // --59-- ERROR 
+          state = 256;                // --60-- ERROR 
         }
       } 
     break; 
-    case 36:                     // --59-- CAS[          36--( isDigit(c) )-->37 ]
+    case 36:                     // --60-- CAS[          36--( isDigit(c) )-->37 ]
       { 
-        if  ( isDigit(c) )        // --59-- CAS[          36--( isDigit(c) )-->37 ]
+        if  ( isDigit(c) )        // --60-- CAS[          36--( isDigit(c) )-->37 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 37; 
         }
-                                        // --60--
-        else if  ( c == '\n' )        // --60-- CAS[          36--( c == '\n' )-->245 ]
+                                        // --61--
+        else if  ( c == '\n' )        // --61-- CAS[          36--( c == '\n' )-->255 ]
         {
           
               {
@@ -1608,45 +1639,23 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
-                                        // --61--
+                                        // --62--
         else {
-          state = 246;                // --61-- ERROR 
+          state = 256;                // --62-- ERROR 
         }
       } 
     break; 
-    case 37:                     // --61-- CAS[          37--( isDigit(c) )-->38 ]
+    case 37:                     // --62-- CAS[          37--( isDigit(c) )-->38 ]
       { 
-        if  ( isDigit(c) )        // --61-- CAS[          37--( isDigit(c) )-->38 ]
+        if  ( isDigit(c) )        // --62-- CAS[          37--( isDigit(c) )-->38 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 38; 
         }
-                                        // --62--
-        else if  ( c == '\n' )        // --62-- CAS[          37--( c == '\n' )-->245 ]
-        {
-          
-              {
-                  if (debug & 1){
-                      printDebug_p_port_value();
-                  }
-                  if ( pwms & (1 << port)){
-                      analogWrite(port, value);
-                  }
-              }
-               
-          state = 245; 
-        }
                                         // --63--
-        else {
-          state = 246;                // --63-- ERROR 
-        }
-      } 
-    break; 
-    case 38:                     // --63-- CAS[          38--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --63-- CAS[          38--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --63-- CAS[          37--( c == '\n' )-->255 ]
         {
           
               {
@@ -1658,81 +1667,103 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
                                         // --64--
         else {
-          state = 246;                // --64-- ERROR 
+          state = 256;                // --64-- ERROR 
         }
       } 
     break; 
-    case 39:                     // --64-- CAS[          39--( isDigit(c) )-->40 ]
+    case 38:                     // --64-- CAS[          38--( c == '\n' )-->255 ]
       { 
-        if  ( isDigit(c) )        // --64-- CAS[          39--( isDigit(c) )-->40 ]
+        if  ( c == '\n' )        // --64-- CAS[          38--( c == '\n' )-->255 ]
+        {
+          
+              {
+                  if (debug & 1){
+                      printDebug_p_port_value();
+                  }
+                  if ( pwms & (1 << port)){
+                      analogWrite(port, value);
+                  }
+              }
+               
+          state = 255; 
+        }
+                                        // --65--
+        else {
+          state = 256;                // --65-- ERROR 
+        }
+      } 
+    break; 
+    case 39:                     // --65-- CAS[          39--( isDigit(c) )-->40 ]
+      { 
+        if  ( isDigit(c) )        // --65-- CAS[          39--( isDigit(c) )-->40 ]
         {
           port = valueDecimal(c); 
           state = 40; 
         }
-                                        // --65--
+                                        // --66--
         else {
-          state = 246;                // --65-- ERROR 
+          state = 256;                // --66-- ERROR 
         }
       } 
     break; 
-    case 40:                     // --65-- CAS[          40--( isDigit(c) )-->41 ]
+    case 40:                     // --66-- CAS[          40--( isDigit(c) )-->41 ]
       { 
-        if  ( isDigit(c) )        // --65-- CAS[          40--( isDigit(c) )-->41 ]
+        if  ( isDigit(c) )        // --66-- CAS[          40--( isDigit(c) )-->41 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 41; 
         }
-                                        // --66--
-        else if  ( c == ',' )        // --66-- CAS[          40--( c == ',' )-->42 ]
-        {
-           
-          state = 42; 
-        }
                                         // --67--
-        else {
-          state = 246;                // --67-- ERROR 
-        }
-      } 
-    break; 
-    case 41:                     // --67-- CAS[          41--( c == ',' )-->42 ]
-      { 
-        if  ( c == ',' )        // --67-- CAS[          41--( c == ',' )-->42 ]
+        else if  ( c == ',' )        // --67-- CAS[          40--( c == ',' )-->42 ]
         {
            
           state = 42; 
         }
                                         // --68--
         else {
-          state = 246;                // --68-- ERROR 
+          state = 256;                // --68-- ERROR 
         }
       } 
     break; 
-    case 42:                     // --68-- CAS[          42--( isDigit(c) )-->43 ]
+    case 41:                     // --68-- CAS[          41--( c == ',' )-->42 ]
       { 
-        if  ( isDigit(c) )        // --68-- CAS[          42--( isDigit(c) )-->43 ]
+        if  ( c == ',' )        // --68-- CAS[          41--( c == ',' )-->42 ]
+        {
+           
+          state = 42; 
+        }
+                                        // --69--
+        else {
+          state = 256;                // --69-- ERROR 
+        }
+      } 
+    break; 
+    case 42:                     // --69-- CAS[          42--( isDigit(c) )-->43 ]
+      { 
+        if  ( isDigit(c) )        // --69-- CAS[          42--( isDigit(c) )-->43 ]
         {
           value = valueDecimal(c); 
           state = 43; 
         }
-                                        // --69--
+                                        // --70--
         else {
-          state = 246;                // --69-- ERROR 
+          state = 256;                // --70-- ERROR 
         }
       } 
     break; 
-    case 43:                     // --69-- CAS[          43--( isDigit(c) )-->44 ]
+    case 43:                     // --70-- CAS[          43--( isDigit(c) )-->44 ]
       { 
-        if  ( isDigit(c) )        // --69-- CAS[          43--( isDigit(c) )-->44 ]
+        if  ( isDigit(c) )        // --70-- CAS[          43--( isDigit(c) )-->44 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 44; 
         }
-                                        // --70--
-        else if  ( c == '\n' )        // --70-- CAS[          43--( c == '\n' )-->245 ]
+                                        // --71--
+        else if  ( c == '\n' )        // --71-- CAS[          43--( c == '\n' )-->255 ]
         {
           
               {
@@ -1744,45 +1775,23 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
-                                        // --71--
+                                        // --72--
         else {
-          state = 246;                // --71-- ERROR 
+          state = 256;                // --72-- ERROR 
         }
       } 
     break; 
-    case 44:                     // --71-- CAS[          44--( isDigit(c) )-->45 ]
+    case 44:                     // --72-- CAS[          44--( isDigit(c) )-->45 ]
       { 
-        if  ( isDigit(c) )        // --71-- CAS[          44--( isDigit(c) )-->45 ]
+        if  ( isDigit(c) )        // --72-- CAS[          44--( isDigit(c) )-->45 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 45; 
         }
-                                        // --72--
-        else if  ( c == '\n' )        // --72-- CAS[          44--( c == '\n' )-->245 ]
-        {
-          
-              {
-                  if (debug & 1){
-                      printDebug_p_port_value();
-                  }
-                  if ( pwms & (1 << port)){
-                      analogWrite(port, value);
-                  }
-              }
-               
-          state = 245; 
-        }
                                         // --73--
-        else {
-          state = 246;                // --73-- ERROR 
-        }
-      } 
-    break; 
-    case 45:                     // --73-- CAS[          45--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --73-- CAS[          45--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --73-- CAS[          44--( c == '\n' )-->255 ]
         {
           
               {
@@ -1794,68 +1803,90 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
                                         // --74--
         else {
-          state = 246;                // --74-- ERROR 
+          state = 256;                // --74-- ERROR 
         }
       } 
     break; 
-    case 46:                     // --74-- CAS[          46--( isDigit(c) )-->47 ]
+    case 45:                     // --74-- CAS[          45--( c == '\n' )-->255 ]
       { 
-        if  ( isDigit(c) )        // --74-- CAS[          46--( isDigit(c) )-->47 ]
+        if  ( c == '\n' )        // --74-- CAS[          45--( c == '\n' )-->255 ]
+        {
+          
+              {
+                  if (debug & 1){
+                      printDebug_p_port_value();
+                  }
+                  if ( pwms & (1 << port)){
+                      analogWrite(port, value);
+                  }
+              }
+               
+          state = 255; 
+        }
+                                        // --75--
+        else {
+          state = 256;                // --75-- ERROR 
+        }
+      } 
+    break; 
+    case 46:                     // --75-- CAS[          46--( isDigit(c) )-->47 ]
+      { 
+        if  ( isDigit(c) )        // --75-- CAS[          46--( isDigit(c) )-->47 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 47; 
         }
-                                        // --75--
-        else if  ( c == ',' )        // --75-- CAS[          46--( c == ',' )-->48 ]
-        {
-           
-          state = 48; 
-        }
                                         // --76--
-        else {
-          state = 246;                // --76-- ERROR 
-        }
-      } 
-    break; 
-    case 47:                     // --76-- CAS[          47--( c == ',' )-->48 ]
-      { 
-        if  ( c == ',' )        // --76-- CAS[          47--( c == ',' )-->48 ]
+        else if  ( c == ',' )        // --76-- CAS[          46--( c == ',' )-->48 ]
         {
            
           state = 48; 
         }
                                         // --77--
         else {
-          state = 246;                // --77-- ERROR 
+          state = 256;                // --77-- ERROR 
         }
       } 
     break; 
-    case 48:                     // --77-- CAS[          48--( isDigit(c) )-->49 ]
+    case 47:                     // --77-- CAS[          47--( c == ',' )-->48 ]
       { 
-        if  ( isDigit(c) )        // --77-- CAS[          48--( isDigit(c) )-->49 ]
+        if  ( c == ',' )        // --77-- CAS[          47--( c == ',' )-->48 ]
+        {
+           
+          state = 48; 
+        }
+                                        // --78--
+        else {
+          state = 256;                // --78-- ERROR 
+        }
+      } 
+    break; 
+    case 48:                     // --78-- CAS[          48--( isDigit(c) )-->49 ]
+      { 
+        if  ( isDigit(c) )        // --78-- CAS[          48--( isDigit(c) )-->49 ]
         {
           value = valueDecimal(c); 
           state = 49; 
         }
-                                        // --78--
+                                        // --79--
         else {
-          state = 246;                // --78-- ERROR 
+          state = 256;                // --79-- ERROR 
         }
       } 
     break; 
-    case 49:                     // --78-- CAS[          49--( isDigit(c) )-->50 ]
+    case 49:                     // --79-- CAS[          49--( isDigit(c) )-->50 ]
       { 
-        if  ( isDigit(c) )        // --78-- CAS[          49--( isDigit(c) )-->50 ]
+        if  ( isDigit(c) )        // --79-- CAS[          49--( isDigit(c) )-->50 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 50; 
         }
-                                        // --79--
-        else if  ( c == '\n' )        // --79-- CAS[          49--( c == '\n' )-->245 ]
+                                        // --80--
+        else if  ( c == '\n' )        // --80-- CAS[          49--( c == '\n' )-->255 ]
         {
           
           {
@@ -1867,45 +1898,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --80--
+                                        // --81--
         else {
-          state = 246;                // --80-- ERROR 
+          state = 256;                // --81-- ERROR 
         }
       } 
     break; 
-    case 50:                     // --80-- CAS[          50--( isDigit(c) )-->51 ]
+    case 50:                     // --81-- CAS[          50--( isDigit(c) )-->51 ]
       { 
-        if  ( isDigit(c) )        // --80-- CAS[          50--( isDigit(c) )-->51 ]
+        if  ( isDigit(c) )        // --81-- CAS[          50--( isDigit(c) )-->51 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 51; 
         }
-                                        // --81--
-        else if  ( c == '\n' )        // --81-- CAS[          50--( c == '\n' )-->245 ]
-        {
-          
-          {
-              if (debug & 1){
-                  printDebug_p_port_value();
-              }
-              if ( pwms & (1 << port)){
-                  analogWrite(port, value);
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --82--
-        else {
-          state = 246;                // --82-- ERROR 
-        }
-      } 
-    break; 
-    case 51:                     // --82-- CAS[          51--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --82-- CAS[          51--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --82-- CAS[          50--( c == '\n' )-->255 ]
         {
           
           {
@@ -1917,158 +1926,180 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --83--
         else {
-          state = 246;                // --83-- ERROR 
+          state = 256;                // --83-- ERROR 
         }
       } 
     break; 
-    case 52:                     // --83-- CAS[          52--( c == 'e' )-->53 ]
+    case 51:                     // --83-- CAS[          51--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'e' )        // --83-- CAS[          52--( c == 'e' )-->53 ]
+        if  ( c == '\n' )        // --83-- CAS[          51--( c == '\n' )-->255 ]
+        {
+          
+          {
+              if (debug & 1){
+                  printDebug_p_port_value();
+              }
+              if ( pwms & (1 << port)){
+                  analogWrite(port, value);
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --84--
+        else {
+          state = 256;                // --84-- ERROR 
+        }
+      } 
+    break; 
+    case 52:                     // --84-- CAS[          52--( c == 'e' )-->53 ]
+      { 
+        if  ( c == 'e' )        // --84-- CAS[          52--( c == 'e' )-->53 ]
         {
            
           state = 53; 
         }
-                                        // --84--
-        else if  ( c == ':' )        // --84-- CAS[          52--( c == ':' )-->64 ]
+                                        // --85--
+        else if  ( c == ':' )        // --85-- CAS[          52--( c == ':' )-->64 ]
         {
            
           state = 64; 
         }
-                                        // --85--
-        else if  ( isDigit(c) )        // --85-- CAS[          52--( isDigit(c) )-->71 ]
+                                        // --86--
+        else if  ( isDigit(c) )        // --86-- CAS[          52--( isDigit(c) )-->71 ]
         {
           port = valueDecimal(c); 
           state = 71; 
         }
-                                        // --86--
+                                        // --87--
         else {
-          state = 246;                // --86-- ERROR 
+          state = 256;                // --87-- ERROR 
         }
       } 
     break; 
-    case 53:                     // --86-- CAS[          53--( c == 'r' )-->54 ]
+    case 53:                     // --87-- CAS[          53--( c == 'r' )-->54 ]
       { 
-        if  ( c == 'r' )        // --86-- CAS[          53--( c == 'r' )-->54 ]
+        if  ( c == 'r' )        // --87-- CAS[          53--( c == 'r' )-->54 ]
         {
            
           state = 54; 
         }
-                                        // --87--
+                                        // --88--
         else {
-          state = 246;                // --87-- ERROR 
+          state = 256;                // --88-- ERROR 
         }
       } 
     break; 
-    case 54:                     // --87-- CAS[          54--( c == 'v' )-->55 ]
+    case 54:                     // --88-- CAS[          54--( c == 'v' )-->55 ]
       { 
-        if  ( c == 'v' )        // --87-- CAS[          54--( c == 'v' )-->55 ]
+        if  ( c == 'v' )        // --88-- CAS[          54--( c == 'v' )-->55 ]
         {
            
           state = 55; 
         }
-                                        // --88--
+                                        // --89--
         else {
-          state = 246;                // --88-- ERROR 
+          state = 256;                // --89-- ERROR 
         }
       } 
     break; 
-    case 55:                     // --88-- CAS[          55--( c == 'o' )-->56 ]
+    case 55:                     // --89-- CAS[          55--( c == 'o' )-->56 ]
       { 
-        if  ( c == 'o' )        // --88-- CAS[          55--( c == 'o' )-->56 ]
+        if  ( c == 'o' )        // --89-- CAS[          55--( c == 'o' )-->56 ]
         {
            
           state = 56; 
         }
-                                        // --89--
+                                        // --90--
         else {
-          state = 246;                // --89-- ERROR 
+          state = 256;                // --90-- ERROR 
         }
       } 
     break; 
-    case 56:                     // --89-- CAS[          56--( c == ':' )-->57 ]
+    case 56:                     // --90-- CAS[          56--( c == ':' )-->57 ]
       { 
-        if  ( c == ':' )        // --89-- CAS[          56--( c == ':' )-->57 ]
+        if  ( c == ':' )        // --90-- CAS[          56--( c == ':' )-->57 ]
         {
            
           state = 57; 
         }
-                                        // --90--
+                                        // --91--
         else {
-          state = 246;                // --90-- ERROR 
+          state = 256;                // --91-- ERROR 
         }
       } 
     break; 
-    case 57:                     // --90-- CAS[          57--( isDigit(c) )-->58 ]
+    case 57:                     // --91-- CAS[          57--( isDigit(c) )-->58 ]
       { 
-        if  ( isDigit(c) )        // --90-- CAS[          57--( isDigit(c) )-->58 ]
+        if  ( isDigit(c) )        // --91-- CAS[          57--( isDigit(c) )-->58 ]
         {
           port = valueDecimal(c); 
           state = 58; 
         }
-                                        // --91--
+                                        // --92--
         else {
-          state = 246;                // --91-- ERROR 
+          state = 256;                // --92-- ERROR 
         }
       } 
     break; 
-    case 58:                     // --91-- CAS[          58--( isDigit(c) )-->59 ]
+    case 58:                     // --92-- CAS[          58--( isDigit(c) )-->59 ]
       { 
-        if  ( isDigit(c) )        // --91-- CAS[          58--( isDigit(c) )-->59 ]
+        if  ( isDigit(c) )        // --92-- CAS[          58--( isDigit(c) )-->59 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 59; 
         }
-                                        // --92--
-        else if  ( c == ',' )        // --92-- CAS[          58--( c == ',' )-->60 ]
-        {
-           
-          state = 60; 
-        }
                                         // --93--
-        else {
-          state = 246;                // --93-- ERROR 
-        }
-      } 
-    break; 
-    case 59:                     // --93-- CAS[          59--( c == ',' )-->60 ]
-      { 
-        if  ( c == ',' )        // --93-- CAS[          59--( c == ',' )-->60 ]
+        else if  ( c == ',' )        // --93-- CAS[          58--( c == ',' )-->60 ]
         {
            
           state = 60; 
         }
                                         // --94--
         else {
-          state = 246;                // --94-- ERROR 
+          state = 256;                // --94-- ERROR 
         }
       } 
     break; 
-    case 60:                     // --94-- CAS[          60--( isDigit(c) )-->61 ]
+    case 59:                     // --94-- CAS[          59--( c == ',' )-->60 ]
       { 
-        if  ( isDigit(c) )        // --94-- CAS[          60--( isDigit(c) )-->61 ]
+        if  ( c == ',' )        // --94-- CAS[          59--( c == ',' )-->60 ]
+        {
+           
+          state = 60; 
+        }
+                                        // --95--
+        else {
+          state = 256;                // --95-- ERROR 
+        }
+      } 
+    break; 
+    case 60:                     // --95-- CAS[          60--( isDigit(c) )-->61 ]
+      { 
+        if  ( isDigit(c) )        // --95-- CAS[          60--( isDigit(c) )-->61 ]
         {
           value = valueDecimal(c); 
           state = 61; 
         }
-                                        // --95--
+                                        // --96--
         else {
-          state = 246;                // --95-- ERROR 
+          state = 256;                // --96-- ERROR 
         }
       } 
     break; 
-    case 61:                     // --95-- CAS[          61--( isDigit(c) )-->62 ]
+    case 61:                     // --96-- CAS[          61--( isDigit(c) )-->62 ]
       { 
-        if  ( isDigit(c) )        // --95-- CAS[          61--( isDigit(c) )-->62 ]
+        if  ( isDigit(c) )        // --96-- CAS[          61--( isDigit(c) )-->62 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 62; 
         }
-                                        // --96--
-        else if  ( c == '\n' )        // --96-- CAS[          61--( c == '\n' )-->245 ]
+                                        // --97--
+        else if  ( c == '\n' )        // --97-- CAS[          61--( c == '\n' )-->255 ]
         {
            
               {
@@ -2083,48 +2114,23 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
-                                        // --97--
+                                        // --98--
         else {
-          state = 246;                // --97-- ERROR 
+          state = 256;                // --98-- ERROR 
         }
       } 
     break; 
-    case 62:                     // --97-- CAS[          62--( isDigit(c) )-->63 ]
+    case 62:                     // --98-- CAS[          62--( isDigit(c) )-->63 ]
       { 
-        if  ( isDigit(c) )        // --97-- CAS[          62--( isDigit(c) )-->63 ]
+        if  ( isDigit(c) )        // --98-- CAS[          62--( isDigit(c) )-->63 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 63; 
         }
-                                        // --98--
-        else if  ( c == '\n' )        // --98-- CAS[          62--( c == '\n' )-->245 ]
-        {
-           
-              {
-                  if (debug & 1){
-                      printDebug_s_port_value();
-                  }
-                  if ( servos & (1 << port)) {
-                      // Serial.println("config ok");
-                      if ( servoObject[port] != NULL )
-                          //Serial.println("config not null");
-                      servoObject[port]->write( value);
-                  }
-              }
-               
-          state = 245; 
-        }
                                         // --99--
-        else {
-          state = 246;                // --99-- ERROR 
-        }
-      } 
-    break; 
-    case 63:                     // --99-- CAS[          63--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --99-- CAS[          63--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --99-- CAS[          62--( c == '\n' )-->255 ]
         {
            
               {
@@ -2139,81 +2145,106 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
                                         // --100--
         else {
-          state = 246;                // --100-- ERROR 
+          state = 256;                // --100-- ERROR 
         }
       } 
     break; 
-    case 64:                     // --100-- CAS[          64--( isDigit(c) )-->65 ]
+    case 63:                     // --100-- CAS[          63--( c == '\n' )-->255 ]
       { 
-        if  ( isDigit(c) )        // --100-- CAS[          64--( isDigit(c) )-->65 ]
+        if  ( c == '\n' )        // --100-- CAS[          63--( c == '\n' )-->255 ]
+        {
+           
+              {
+                  if (debug & 1){
+                      printDebug_s_port_value();
+                  }
+                  if ( servos & (1 << port)) {
+                      // Serial.println("config ok");
+                      if ( servoObject[port] != NULL )
+                          //Serial.println("config not null");
+                      servoObject[port]->write( value);
+                  }
+              }
+               
+          state = 255; 
+        }
+                                        // --101--
+        else {
+          state = 256;                // --101-- ERROR 
+        }
+      } 
+    break; 
+    case 64:                     // --101-- CAS[          64--( isDigit(c) )-->65 ]
+      { 
+        if  ( isDigit(c) )        // --101-- CAS[          64--( isDigit(c) )-->65 ]
         {
           port = valueDecimal(c); 
           state = 65; 
         }
-                                        // --101--
+                                        // --102--
         else {
-          state = 246;                // --101-- ERROR 
+          state = 256;                // --102-- ERROR 
         }
       } 
     break; 
-    case 65:                     // --101-- CAS[          65--( isDigit(c) )-->66 ]
+    case 65:                     // --102-- CAS[          65--( isDigit(c) )-->66 ]
       { 
-        if  ( isDigit(c) )        // --101-- CAS[          65--( isDigit(c) )-->66 ]
+        if  ( isDigit(c) )        // --102-- CAS[          65--( isDigit(c) )-->66 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 66; 
         }
-                                        // --102--
-        else if  ( c == ',' )        // --102-- CAS[          65--( c == ',' )-->67 ]
-        {
-           
-          state = 67; 
-        }
                                         // --103--
-        else {
-          state = 246;                // --103-- ERROR 
-        }
-      } 
-    break; 
-    case 66:                     // --103-- CAS[          66--( c == ',' )-->67 ]
-      { 
-        if  ( c == ',' )        // --103-- CAS[          66--( c == ',' )-->67 ]
+        else if  ( c == ',' )        // --103-- CAS[          65--( c == ',' )-->67 ]
         {
            
           state = 67; 
         }
                                         // --104--
         else {
-          state = 246;                // --104-- ERROR 
+          state = 256;                // --104-- ERROR 
         }
       } 
     break; 
-    case 67:                     // --104-- CAS[          67--( isDigit(c) )-->68 ]
+    case 66:                     // --104-- CAS[          66--( c == ',' )-->67 ]
       { 
-        if  ( isDigit(c) )        // --104-- CAS[          67--( isDigit(c) )-->68 ]
+        if  ( c == ',' )        // --104-- CAS[          66--( c == ',' )-->67 ]
+        {
+           
+          state = 67; 
+        }
+                                        // --105--
+        else {
+          state = 256;                // --105-- ERROR 
+        }
+      } 
+    break; 
+    case 67:                     // --105-- CAS[          67--( isDigit(c) )-->68 ]
+      { 
+        if  ( isDigit(c) )        // --105-- CAS[          67--( isDigit(c) )-->68 ]
         {
           value = valueDecimal(c); 
           state = 68; 
         }
-                                        // --105--
+                                        // --106--
         else {
-          state = 246;                // --105-- ERROR 
+          state = 256;                // --106-- ERROR 
         }
       } 
     break; 
-    case 68:                     // --105-- CAS[          68--( isDigit(c) )-->69 ]
+    case 68:                     // --106-- CAS[          68--( isDigit(c) )-->69 ]
       { 
-        if  ( isDigit(c) )        // --105-- CAS[          68--( isDigit(c) )-->69 ]
+        if  ( isDigit(c) )        // --106-- CAS[          68--( isDigit(c) )-->69 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 69; 
         }
-                                        // --106--
-        else if  ( c == '\n' )        // --106-- CAS[          68--( c == '\n' )-->245 ]
+                                        // --107--
+        else if  ( c == '\n' )        // --107-- CAS[          68--( c == '\n' )-->255 ]
         {
            
               {
@@ -2228,48 +2259,23 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
-                                        // --107--
+                                        // --108--
         else {
-          state = 246;                // --107-- ERROR 
+          state = 256;                // --108-- ERROR 
         }
       } 
     break; 
-    case 69:                     // --107-- CAS[          69--( isDigit(c) )-->70 ]
+    case 69:                     // --108-- CAS[          69--( isDigit(c) )-->70 ]
       { 
-        if  ( isDigit(c) )        // --107-- CAS[          69--( isDigit(c) )-->70 ]
+        if  ( isDigit(c) )        // --108-- CAS[          69--( isDigit(c) )-->70 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 70; 
         }
-                                        // --108--
-        else if  ( c == '\n' )        // --108-- CAS[          69--( c == '\n' )-->245 ]
-        {
-           
-              {
-                  if (debug & 1){
-                      printDebug_s_port_value();
-                  }
-                  if ( servos & (1 << port)) {
-                      // Serial.println("config ok");
-                      if ( servoObject[port] != NULL )
-                          //Serial.println("config not null");
-                      servoObject[port]->write( value);
-                  }
-              }
-               
-          state = 245; 
-        }
                                         // --109--
-        else {
-          state = 246;                // --109-- ERROR 
-        }
-      } 
-    break; 
-    case 70:                     // --109-- CAS[          70--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --109-- CAS[          70--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --109-- CAS[          69--( c == '\n' )-->255 ]
         {
            
               {
@@ -2284,68 +2290,93 @@ void loop() {
                   }
               }
                
-          state = 245; 
+          state = 255; 
         }
                                         // --110--
         else {
-          state = 246;                // --110-- ERROR 
+          state = 256;                // --110-- ERROR 
         }
       } 
     break; 
-    case 71:                     // --110-- CAS[          71--( isDigit(c) )-->72 ]
+    case 70:                     // --110-- CAS[          70--( c == '\n' )-->255 ]
       { 
-        if  ( isDigit(c) )        // --110-- CAS[          71--( isDigit(c) )-->72 ]
+        if  ( c == '\n' )        // --110-- CAS[          70--( c == '\n' )-->255 ]
+        {
+           
+              {
+                  if (debug & 1){
+                      printDebug_s_port_value();
+                  }
+                  if ( servos & (1 << port)) {
+                      // Serial.println("config ok");
+                      if ( servoObject[port] != NULL )
+                          //Serial.println("config not null");
+                      servoObject[port]->write( value);
+                  }
+              }
+               
+          state = 255; 
+        }
+                                        // --111--
+        else {
+          state = 256;                // --111-- ERROR 
+        }
+      } 
+    break; 
+    case 71:                     // --111-- CAS[          71--( isDigit(c) )-->72 ]
+      { 
+        if  ( isDigit(c) )        // --111-- CAS[          71--( isDigit(c) )-->72 ]
         {
           port = port * 10 + valueDecimal(c); 
           state = 72; 
         }
-                                        // --111--
-        else if  ( c == ',' )        // --111-- CAS[          71--( c == ',' )-->73 ]
-        {
-           
-          state = 73; 
-        }
                                         // --112--
-        else {
-          state = 246;                // --112-- ERROR 
-        }
-      } 
-    break; 
-    case 72:                     // --112-- CAS[          72--( c == ',' )-->73 ]
-      { 
-        if  ( c == ',' )        // --112-- CAS[          72--( c == ',' )-->73 ]
+        else if  ( c == ',' )        // --112-- CAS[          71--( c == ',' )-->73 ]
         {
            
           state = 73; 
         }
                                         // --113--
         else {
-          state = 246;                // --113-- ERROR 
+          state = 256;                // --113-- ERROR 
         }
       } 
     break; 
-    case 73:                     // --113-- CAS[          73--( isDigit(c) )-->74 ]
+    case 72:                     // --113-- CAS[          72--( c == ',' )-->73 ]
       { 
-        if  ( isDigit(c) )        // --113-- CAS[          73--( isDigit(c) )-->74 ]
+        if  ( c == ',' )        // --113-- CAS[          72--( c == ',' )-->73 ]
+        {
+           
+          state = 73; 
+        }
+                                        // --114--
+        else {
+          state = 256;                // --114-- ERROR 
+        }
+      } 
+    break; 
+    case 73:                     // --114-- CAS[          73--( isDigit(c) )-->74 ]
+      { 
+        if  ( isDigit(c) )        // --114-- CAS[          73--( isDigit(c) )-->74 ]
         {
           value = valueDecimal(c); 
           state = 74; 
         }
-                                        // --114--
+                                        // --115--
         else {
-          state = 246;                // --114-- ERROR 
+          state = 256;                // --115-- ERROR 
         }
       } 
     break; 
-    case 74:                     // --114-- CAS[          74--( isDigit(c) )-->75 ]
+    case 74:                     // --115-- CAS[          74--( isDigit(c) )-->75 ]
       { 
-        if  ( isDigit(c) )        // --114-- CAS[          74--( isDigit(c) )-->75 ]
+        if  ( isDigit(c) )        // --115-- CAS[          74--( isDigit(c) )-->75 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 75; 
         }
-                                        // --115--
-        else if  ( c == '\n' )        // --115-- CAS[          74--( c == '\n' )-->245 ]
+                                        // --116--
+        else if  ( c == '\n' )        // --116-- CAS[          74--( c == '\n' )-->255 ]
         {
            
           {
@@ -2360,48 +2391,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --116--
+                                        // --117--
         else {
-          state = 246;                // --116-- ERROR 
+          state = 256;                // --117-- ERROR 
         }
       } 
     break; 
-    case 75:                     // --116-- CAS[          75--( isDigit(c) )-->76 ]
+    case 75:                     // --117-- CAS[          75--( isDigit(c) )-->76 ]
       { 
-        if  ( isDigit(c) )        // --116-- CAS[          75--( isDigit(c) )-->76 ]
+        if  ( isDigit(c) )        // --117-- CAS[          75--( isDigit(c) )-->76 ]
         {
           value = value * 10 + valueDecimal(c); 
           state = 76; 
         }
-                                        // --117--
-        else if  ( c == '\n' )        // --117-- CAS[          75--( c == '\n' )-->245 ]
-        {
-           
-          {
-              if (debug & 1){
-                  printDebug_s_port_value();
-              }
-              if ( servos & (1 << port)) {
-                  // Serial.println("config ok");
-                  if ( servoObject[port] != NULL )
-                      //Serial.println("config not null");
-                  servoObject[port]->write( value);
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --118--
-        else {
-          state = 246;                // --118-- ERROR 
-        }
-      } 
-    break; 
-    case 76:                     // --118-- CAS[          76--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --118-- CAS[          76--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --118-- CAS[          75--( c == '\n' )-->255 ]
         {
            
           {
@@ -2416,56 +2422,81 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --119--
         else {
-          state = 246;                // --119-- ERROR 
+          state = 256;                // --119-- ERROR 
         }
       } 
     break; 
-    case 77:                     // --119-- CAS[          77--( c == 'e' )-->78 ]
+    case 76:                     // --119-- CAS[          76--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'e' )        // --119-- CAS[          77--( c == 'e' )-->78 ]
+        if  ( c == '\n' )        // --119-- CAS[          76--( c == '\n' )-->255 ]
+        {
+           
+          {
+              if (debug & 1){
+                  printDebug_s_port_value();
+              }
+              if ( servos & (1 << port)) {
+                  // Serial.println("config ok");
+                  if ( servoObject[port] != NULL )
+                      //Serial.println("config not null");
+                  servoObject[port]->write( value);
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --120--
+        else {
+          state = 256;                // --120-- ERROR 
+        }
+      } 
+    break; 
+    case 77:                     // --120-- CAS[          77--( c == 'e' )-->78 ]
+      { 
+        if  ( c == 'e' )        // --120-- CAS[          77--( c == 'e' )-->78 ]
         {
            
           state = 78; 
         }
-                                        // --120--
+                                        // --121--
         else {
-          state = 246;                // --120-- ERROR 
+          state = 256;                // --121-- ERROR 
         }
       } 
     break; 
-    case 78:                     // --120-- CAS[          78--( c == 'l' )-->79 ]
+    case 78:                     // --121-- CAS[          78--( c == 'l' )-->79 ]
       { 
-        if  ( c == 'l' )        // --120-- CAS[          78--( c == 'l' )-->79 ]
+        if  ( c == 'l' )        // --121-- CAS[          78--( c == 'l' )-->79 ]
         {
            
           state = 79; 
         }
-                                        // --121--
+                                        // --122--
         else {
-          state = 246;                // --121-- ERROR 
+          state = 256;                // --122-- ERROR 
         }
       } 
     break; 
-    case 79:                     // --121-- CAS[          79--( c == 'p' )-->80 ]
+    case 79:                     // --122-- CAS[          79--( c == 'p' )-->80 ]
       { 
-        if  ( c == 'p' )        // --121-- CAS[          79--( c == 'p' )-->80 ]
+        if  ( c == 'p' )        // --122-- CAS[          79--( c == 'p' )-->80 ]
         {
            
           state = 80; 
         }
-                                        // --122--
+                                        // --123--
         else {
-          state = 246;                // --122-- ERROR 
+          state = 256;                // --123-- ERROR 
         }
       } 
     break; 
-    case 80:                     // --122-- CAS[          80--( c == '\n' )-->245 ]
+    case 80:                     // --123-- CAS[          80--( c == '\n' )-->255 ]
       { 
-        if  ( c == '\n' )        // --122-- CAS[          80--( c == '\n' )-->245 ]
+        if  ( c == '\n' )        // --123-- CAS[          80--( c == '\n' )-->255 ]
         {
           
           {
@@ -2476,944 +2507,944 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --123--
+                                        // --124--
         else {
-          state = 246;                // --123-- ERROR 
+          state = 256;                // --124-- ERROR 
         }
       } 
     break; 
-    case 81:                     // --123-- CAS[          81--( c == 'i' )-->82 ]
+    case 81:                     // --124-- CAS[          81--( c == 'i' )-->82 ]
       { 
-        if  ( c == 'i' )        // --123-- CAS[          81--( c == 'i' )-->82 ]
+        if  ( c == 'i' )        // --124-- CAS[          81--( c == 'i' )-->82 ]
         {
            
           state = 82; 
         }
-                                        // --124--
-        else if  ( c == 'd' )        // --124-- CAS[          81--( c == 'd' )-->105 ]
+                                        // --125--
+        else if  ( c == 'd' )        // --125-- CAS[          81--( c == 'd' )-->105 ]
         {
            
           state = 105; 
         }
-                                        // --125--
-        else if  ( c == 'a' )        // --125-- CAS[          81--( c == 'a' )-->178 ]
+                                        // --126--
+        else if  ( c == 'a' )        // --126-- CAS[          81--( c == 'a' )-->178 ]
         {
            
           state = 178; 
         }
-                                        // --126--
-        else if  ( c == 'v' )        // --126-- CAS[          81--( c == 'v' )-->233 ]
-        {
-           
-          state = 233; 
-        }
                                         // --127--
-        else if  ( c == 'e' )        // --127-- CAS[          81--( c == 'e' )-->241 ]
+        else if  ( c == 'v' )        // --127-- CAS[          81--( c == 'v' )-->243 ]
         {
            
-          state = 241; 
+          state = 243; 
         }
                                         // --128--
+        else if  ( c == 'e' )        // --128-- CAS[          81--( c == 'e' )-->251 ]
+        {
+           
+          state = 251; 
+        }
+                                        // --129--
         else {
-          state = 246;                // --128-- ERROR 
+          state = 256;                // --129-- ERROR 
         }
       } 
     break; 
-    case 82:                     // --128-- CAS[          82--( c == 'd' )-->83 ]
+    case 82:                     // --129-- CAS[          82--( c == 'd' )-->83 ]
       { 
-        if  ( c == 'd' )        // --128-- CAS[          82--( c == 'd' )-->83 ]
+        if  ( c == 'd' )        // --129-- CAS[          82--( c == 'd' )-->83 ]
         {
            
           state = 83; 
         }
-                                        // --129--
+                                        // --130--
         else {
-          state = 246;                // --129-- ERROR 
+          state = 256;                // --130-- ERROR 
         }
       } 
     break; 
-    case 83:                     // --129-- CAS[          83--( c == 'e' )-->84 ]
+    case 83:                     // --130-- CAS[          83--( c == 'e' )-->84 ]
       { 
-        if  ( c == 'e' )        // --129-- CAS[          83--( c == 'e' )-->84 ]
+        if  ( c == 'e' )        // --130-- CAS[          83--( c == 'e' )-->84 ]
         {
            
           state = 84; 
         }
-                                        // --130--
+                                        // --131--
         else {
-          state = 246;                // --130-- ERROR 
+          state = 256;                // --131-- ERROR 
         }
       } 
     break; 
-    case 84:                     // --130-- CAS[          84--( c == 'n' )-->85 ]
+    case 84:                     // --131-- CAS[          84--( c == 'n' )-->85 ]
       { 
-        if  ( c == 'n' )        // --130-- CAS[          84--( c == 'n' )-->85 ]
+        if  ( c == 'n' )        // --131-- CAS[          84--( c == 'n' )-->85 ]
         {
            
           state = 85; 
         }
-                                        // --131--
+                                        // --132--
         else {
-          state = 246;                // --131-- ERROR 
+          state = 256;                // --132-- ERROR 
         }
       } 
     break; 
-    case 85:                     // --131-- CAS[          85--( c == 't' )-->86 ]
+    case 85:                     // --132-- CAS[          85--( c == 't' )-->86 ]
       { 
-        if  ( c == 't' )        // --131-- CAS[          85--( c == 't' )-->86 ]
+        if  ( c == 't' )        // --132-- CAS[          85--( c == 't' )-->86 ]
         {
            
           state = 86; 
         }
-                                        // --132--
+                                        // --133--
         else {
-          state = 246;                // --132-- ERROR 
+          state = 256;                // --133-- ERROR 
         }
       } 
     break; 
-    case 86:                     // --132-- CAS[          86--( c == ':' )-->87 ]
+    case 86:                     // --133-- CAS[          86--( c == ':' )-->87 ]
       { 
-        if  ( c == ':' )        // --132-- CAS[          86--( c == ':' )-->87 ]
+        if  ( c == ':' )        // --133-- CAS[          86--( c == ':' )-->87 ]
         {
            
           state = 87; 
         }
-                                        // --133--
-        else if  ( c == '?' )        // --133-- CAS[          86--( c == '?' )-->104 ]
+                                        // --134--
+        else if  ( c == '?' )        // --134-- CAS[          86--( c == '?' )-->104 ]
         {
            
           state = 104; 
         }
-                                        // --134--
+                                        // --135--
         else {
-          state = 246;                // --134-- ERROR 
+          state = 256;                // --135-- ERROR 
         }
       } 
     break; 
-    case 87:                     // --134-- CAS[          87--( isChar(c) )-->88 ]
+    case 87:                     // --135-- CAS[          87--( isChar(c) )-->88 ]
       { 
-        if  ( isChar(c) )        // --134-- CAS[          87--( isChar(c) )-->88 ]
+        if  ( isChar(c) )        // --135-- CAS[          87--( isChar(c) )-->88 ]
         {
           id[0] = c;id[0+1] = 0; 
           state = 88; 
         }
-                                        // --135--
+                                        // --136--
         else {
-          state = 246;                // --135-- ERROR 
+          state = 256;                // --136-- ERROR 
         }
       } 
     break; 
-    case 88:                     // --135-- CAS[          88--( isLabel(c) )-->89 ]
+    case 88:                     // --136-- CAS[          88--( isLabel(c) )-->89 ]
       { 
-        if  ( isLabel(c) )        // --135-- CAS[          88--( isLabel(c) )-->89 ]
+        if  ( isLabel(c) )        // --136-- CAS[          88--( isLabel(c) )-->89 ]
         {
           id[1] = c;id[1+1] = 0; 
           state = 89; 
         }
-                                        // --136--
-        else if  ( c == '\n' )        // --136-- CAS[          88--( c == '\n' )-->245 ]
+                                        // --137--
+        else if  ( c == '\n' )        // --137-- CAS[          88--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --137--
+                                        // --138--
         else {
-          state = 246;                // --137-- ERROR 
+          state = 256;                // --138-- ERROR 
         }
       } 
     break; 
-    case 89:                     // --137-- CAS[          89--( isLabel(c) )-->90 ]
+    case 89:                     // --138-- CAS[          89--( isLabel(c) )-->90 ]
       { 
-        if  ( isLabel(c) )        // --137-- CAS[          89--( isLabel(c) )-->90 ]
+        if  ( isLabel(c) )        // --138-- CAS[          89--( isLabel(c) )-->90 ]
         {
           id[2] = c;id[2+1] = 0; 
           state = 90; 
         }
-                                        // --138--
-        else if  ( c == '\n' )        // --138-- CAS[          89--( c == '\n' )-->245 ]
+                                        // --139--
+        else if  ( c == '\n' )        // --139-- CAS[          89--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --139--
+                                        // --140--
         else {
-          state = 246;                // --139-- ERROR 
+          state = 256;                // --140-- ERROR 
         }
       } 
     break; 
-    case 90:                     // --139-- CAS[          90--( isLabel(c) )-->91 ]
+    case 90:                     // --140-- CAS[          90--( isLabel(c) )-->91 ]
       { 
-        if  ( isLabel(c) )        // --139-- CAS[          90--( isLabel(c) )-->91 ]
+        if  ( isLabel(c) )        // --140-- CAS[          90--( isLabel(c) )-->91 ]
         {
           id[3] = c;id[3+1] = 0; 
           state = 91; 
         }
-                                        // --140--
-        else if  ( c == '\n' )        // --140-- CAS[          90--( c == '\n' )-->245 ]
+                                        // --141--
+        else if  ( c == '\n' )        // --141-- CAS[          90--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --141--
+                                        // --142--
         else {
-          state = 246;                // --141-- ERROR 
+          state = 256;                // --142-- ERROR 
         }
       } 
     break; 
-    case 91:                     // --141-- CAS[          91--( isLabel(c) )-->92 ]
+    case 91:                     // --142-- CAS[          91--( isLabel(c) )-->92 ]
       { 
-        if  ( isLabel(c) )        // --141-- CAS[          91--( isLabel(c) )-->92 ]
+        if  ( isLabel(c) )        // --142-- CAS[          91--( isLabel(c) )-->92 ]
         {
           id[4] = c;id[4+1] = 0; 
           state = 92; 
         }
-                                        // --142--
-        else if  ( c == '\n' )        // --142-- CAS[          91--( c == '\n' )-->245 ]
+                                        // --143--
+        else if  ( c == '\n' )        // --143-- CAS[          91--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --143--
+                                        // --144--
         else {
-          state = 246;                // --143-- ERROR 
+          state = 256;                // --144-- ERROR 
         }
       } 
     break; 
-    case 92:                     // --143-- CAS[          92--( isLabel(c) )-->93 ]
+    case 92:                     // --144-- CAS[          92--( isLabel(c) )-->93 ]
       { 
-        if  ( isLabel(c) )        // --143-- CAS[          92--( isLabel(c) )-->93 ]
+        if  ( isLabel(c) )        // --144-- CAS[          92--( isLabel(c) )-->93 ]
         {
           id[5] = c;id[5+1] = 0; 
           state = 93; 
         }
-                                        // --144--
-        else if  ( c == '\n' )        // --144-- CAS[          92--( c == '\n' )-->245 ]
+                                        // --145--
+        else if  ( c == '\n' )        // --145-- CAS[          92--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --145--
+                                        // --146--
         else {
-          state = 246;                // --145-- ERROR 
+          state = 256;                // --146-- ERROR 
         }
       } 
     break; 
-    case 93:                     // --145-- CAS[          93--( isLabel(c) )-->94 ]
+    case 93:                     // --146-- CAS[          93--( isLabel(c) )-->94 ]
       { 
-        if  ( isLabel(c) )        // --145-- CAS[          93--( isLabel(c) )-->94 ]
+        if  ( isLabel(c) )        // --146-- CAS[          93--( isLabel(c) )-->94 ]
         {
           id[6] = c;id[6+1] = 0; 
           state = 94; 
         }
-                                        // --146--
-        else if  ( c == '\n' )        // --146-- CAS[          93--( c == '\n' )-->245 ]
+                                        // --147--
+        else if  ( c == '\n' )        // --147-- CAS[          93--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --147--
+                                        // --148--
         else {
-          state = 246;                // --147-- ERROR 
+          state = 256;                // --148-- ERROR 
         }
       } 
     break; 
-    case 94:                     // --147-- CAS[          94--( isLabel(c) )-->95 ]
+    case 94:                     // --148-- CAS[          94--( isLabel(c) )-->95 ]
       { 
-        if  ( isLabel(c) )        // --147-- CAS[          94--( isLabel(c) )-->95 ]
+        if  ( isLabel(c) )        // --148-- CAS[          94--( isLabel(c) )-->95 ]
         {
           id[7] = c;id[7+1] = 0; 
           state = 95; 
         }
-                                        // --148--
-        else if  ( c == '\n' )        // --148-- CAS[          94--( c == '\n' )-->245 ]
+                                        // --149--
+        else if  ( c == '\n' )        // --149-- CAS[          94--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --149--
+                                        // --150--
         else {
-          state = 246;                // --149-- ERROR 
+          state = 256;                // --150-- ERROR 
         }
       } 
     break; 
-    case 95:                     // --149-- CAS[          95--( isLabel(c) )-->96 ]
+    case 95:                     // --150-- CAS[          95--( isLabel(c) )-->96 ]
       { 
-        if  ( isLabel(c) )        // --149-- CAS[          95--( isLabel(c) )-->96 ]
+        if  ( isLabel(c) )        // --150-- CAS[          95--( isLabel(c) )-->96 ]
         {
           id[8] = c;id[8+1] = 0; 
           state = 96; 
         }
-                                        // --150--
-        else if  ( c == '\n' )        // --150-- CAS[          95--( c == '\n' )-->245 ]
+                                        // --151--
+        else if  ( c == '\n' )        // --151-- CAS[          95--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --151--
+                                        // --152--
         else {
-          state = 246;                // --151-- ERROR 
+          state = 256;                // --152-- ERROR 
         }
       } 
     break; 
-    case 96:                     // --151-- CAS[          96--( isLabel(c) )-->97 ]
+    case 96:                     // --152-- CAS[          96--( isLabel(c) )-->97 ]
       { 
-        if  ( isLabel(c) )        // --151-- CAS[          96--( isLabel(c) )-->97 ]
+        if  ( isLabel(c) )        // --152-- CAS[          96--( isLabel(c) )-->97 ]
         {
           id[9] = c;id[9+1] = 0; 
           state = 97; 
         }
-                                        // --152--
-        else if  ( c == '\n' )        // --152-- CAS[          96--( c == '\n' )-->245 ]
+                                        // --153--
+        else if  ( c == '\n' )        // --153-- CAS[          96--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --153--
+                                        // --154--
         else {
-          state = 246;                // --153-- ERROR 
+          state = 256;                // --154-- ERROR 
         }
       } 
     break; 
-    case 97:                     // --153-- CAS[          97--( isLabel(c) )-->98 ]
+    case 97:                     // --154-- CAS[          97--( isLabel(c) )-->98 ]
       { 
-        if  ( isLabel(c) )        // --153-- CAS[          97--( isLabel(c) )-->98 ]
+        if  ( isLabel(c) )        // --154-- CAS[          97--( isLabel(c) )-->98 ]
         {
           id[10] = c;id[10+1] = 0; 
           state = 98; 
         }
-                                        // --154--
-        else if  ( c == '\n' )        // --154-- CAS[          97--( c == '\n' )-->245 ]
+                                        // --155--
+        else if  ( c == '\n' )        // --155-- CAS[          97--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --155--
+                                        // --156--
         else {
-          state = 246;                // --155-- ERROR 
+          state = 256;                // --156-- ERROR 
         }
       } 
     break; 
-    case 98:                     // --155-- CAS[          98--( isLabel(c) )-->99 ]
+    case 98:                     // --156-- CAS[          98--( isLabel(c) )-->99 ]
       { 
-        if  ( isLabel(c) )        // --155-- CAS[          98--( isLabel(c) )-->99 ]
+        if  ( isLabel(c) )        // --156-- CAS[          98--( isLabel(c) )-->99 ]
         {
           id[11] = c;id[11+1] = 0; 
           state = 99; 
         }
-                                        // --156--
-        else if  ( c == '\n' )        // --156-- CAS[          98--( c == '\n' )-->245 ]
+                                        // --157--
+        else if  ( c == '\n' )        // --157-- CAS[          98--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --157--
+                                        // --158--
         else {
-          state = 246;                // --157-- ERROR 
+          state = 256;                // --158-- ERROR 
         }
       } 
     break; 
-    case 99:                     // --157-- CAS[          99--( isLabel(c) )-->100 ]
+    case 99:                     // --158-- CAS[          99--( isLabel(c) )-->100 ]
       { 
-        if  ( isLabel(c) )        // --157-- CAS[          99--( isLabel(c) )-->100 ]
+        if  ( isLabel(c) )        // --158-- CAS[          99--( isLabel(c) )-->100 ]
         {
           id[12] = c;id[12+1] = 0; 
           state = 100; 
         }
-                                        // --158--
-        else if  ( c == '\n' )        // --158-- CAS[          99--( c == '\n' )-->245 ]
+                                        // --159--
+        else if  ( c == '\n' )        // --159-- CAS[          99--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --159--
+                                        // --160--
         else {
-          state = 246;                // --159-- ERROR 
+          state = 256;                // --160-- ERROR 
         }
       } 
     break; 
-    case 100:                     // --159-- CAS[          100--( isLabel(c) )-->101 ]
+    case 100:                     // --160-- CAS[          100--( isLabel(c) )-->101 ]
       { 
-        if  ( isLabel(c) )        // --159-- CAS[          100--( isLabel(c) )-->101 ]
+        if  ( isLabel(c) )        // --160-- CAS[          100--( isLabel(c) )-->101 ]
         {
           id[13] = c;id[13+1] = 0; 
           state = 101; 
         }
-                                        // --160--
-        else if  ( c == '\n' )        // --160-- CAS[          100--( c == '\n' )-->245 ]
+                                        // --161--
+        else if  ( c == '\n' )        // --161-- CAS[          100--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --161--
+                                        // --162--
         else {
-          state = 246;                // --161-- ERROR 
+          state = 256;                // --162-- ERROR 
         }
       } 
     break; 
-    case 101:                     // --161-- CAS[          101--( isLabel(c) )-->102 ]
+    case 101:                     // --162-- CAS[          101--( isLabel(c) )-->102 ]
       { 
-        if  ( isLabel(c) )        // --161-- CAS[          101--( isLabel(c) )-->102 ]
+        if  ( isLabel(c) )        // --162-- CAS[          101--( isLabel(c) )-->102 ]
         {
           id[14] = c;id[14+1] = 0; 
           state = 102; 
         }
-                                        // --162--
-        else if  ( c == '\n' )        // --162-- CAS[          101--( c == '\n' )-->245 ]
+                                        // --163--
+        else if  ( c == '\n' )        // --163-- CAS[          101--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --163--
+                                        // --164--
         else {
-          state = 246;                // --163-- ERROR 
+          state = 256;                // --164-- ERROR 
         }
       } 
     break; 
-    case 102:                     // --163-- CAS[          102--( isLabel(c) )-->103 ]
+    case 102:                     // --164-- CAS[          102--( isLabel(c) )-->103 ]
       { 
-        if  ( isLabel(c) )        // --163-- CAS[          102--( isLabel(c) )-->103 ]
+        if  ( isLabel(c) )        // --164-- CAS[          102--( isLabel(c) )-->103 ]
         {
           id[15] = c;id[15+1] = 0; 
           state = 103; 
         }
-                                        // --164--
-        else if  ( c == '\n' )        // --164-- CAS[          102--( c == '\n' )-->245 ]
-        {
-          
-          {
-              setEEPROM();
-              if ( debug & 1) {
-                  Serial.print("cident=");
-                  Serial.println(id);
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --165--
-        else {
-          state = 246;                // --165-- ERROR 
-        }
-      } 
-    break; 
-    case 103:                     // --165-- CAS[          103--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --165-- CAS[          103--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --165-- CAS[          102--( c == '\n' )-->255 ]
         {
           
           {
               setEEPROM();
               if ( debug & 1) {
-                  Serial.print("cident=");
+                  Serial.print(F( "cident=") );
                   Serial.println(id);
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --166--
         else {
-          state = 246;                // --166-- ERROR 
+          state = 256;                // --166-- ERROR 
         }
       } 
     break; 
-    case 104:                     // --166-- CAS[          104--( c == '\n' )-->245 ]
+    case 103:                     // --166-- CAS[          103--( c == '\n' )-->255 ]
       { 
-        if  ( c == '\n' )        // --166-- CAS[          104--( c == '\n' )-->245 ]
+        if  ( c == '\n' )        // --166-- CAS[          103--( c == '\n' )-->255 ]
+        {
+          
+          {
+              setEEPROM();
+              if ( debug & 1) {
+                  Serial.print(F( "cident=") );
+                  Serial.println(id);
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --167--
+        else {
+          state = 256;                // --167-- ERROR 
+        }
+      } 
+    break; 
+    case 104:                     // --167-- CAS[          104--( c == '\n' )-->255 ]
+      { 
+        if  ( c == '\n' )        // --167-- CAS[          104--( c == '\n' )-->255 ]
         {
           
           {
               getEEPROM();
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --167--
+                                        // --168--
         else {
-          state = 246;                // --167-- ERROR 
+          state = 256;                // --168-- ERROR 
         }
       } 
     break; 
-    case 105:                     // --167-- CAS[          105--( c == 'i' )-->106 ]
+    case 105:                     // --168-- CAS[          105--( c == 'i' )-->106 ]
       { 
-        if  ( c == 'i' )        // --167-- CAS[          105--( c == 'i' )-->106 ]
+        if  ( c == 'i' )        // --168-- CAS[          105--( c == 'i' )-->106 ]
         {
            
           state = 106; 
         }
-                                        // --168--
-        else if  ( c == 'e' )        // --168-- CAS[          105--( c == 'e' )-->117 ]
+                                        // --169--
+        else if  ( c == 'e' )        // --169-- CAS[          105--( c == 'e' )-->117 ]
         {
            
           state = 117; 
         }
-                                        // --169--
-        else if  ( c == 'o' )        // --169-- CAS[          105--( c == 'o' )-->140 ]
+                                        // --170--
+        else if  ( c == 'o' )        // --170-- CAS[          105--( c == 'o' )-->140 ]
         {
            
           state = 140; 
         }
-                                        // --170--
-        else if  ( c == 'p' )        // --170-- CAS[          105--( c == 'p' )-->152 ]
+                                        // --171--
+        else if  ( c == 'p' )        // --171-- CAS[          105--( c == 'p' )-->152 ]
         {
            
           state = 152; 
         }
-                                        // --171--
-        else if  ( c == 's' )        // --171-- CAS[          105--( c == 's' )-->164 ]
+                                        // --172--
+        else if  ( c == 's' )        // --172-- CAS[          105--( c == 's' )-->164 ]
         {
            
           state = 164; 
         }
-                                        // --172--
+                                        // --173--
         else {
-          state = 246;                // --172-- ERROR 
+          state = 256;                // --173-- ERROR 
         }
       } 
     break; 
-    case 106:                     // --172-- CAS[          106--( c == 'n' )-->107 ]
+    case 106:                     // --173-- CAS[          106--( c == 'n' )-->107 ]
       { 
-        if  ( c == 'n' )        // --172-- CAS[          106--( c == 'n' )-->107 ]
+        if  ( c == 'n' )        // --173-- CAS[          106--( c == 'n' )-->107 ]
         {
            
           state = 107; 
         }
-                                        // --173--
+                                        // --174--
         else {
-          state = 246;                // --173-- ERROR 
+          state = 256;                // --174-- ERROR 
         }
       } 
     break; 
-    case 107:                     // --173-- CAS[          107--( c == ':' )-->108 ]
+    case 107:                     // --174-- CAS[          107--( c == ':' )-->108 ]
       { 
-        if  ( c == ':' )        // --173-- CAS[          107--( c == ':' )-->108 ]
+        if  ( c == ':' )        // --174-- CAS[          107--( c == ':' )-->108 ]
         {
            
           state = 108; 
         }
-                                        // --174--
-        else if  ( c == 'p' )        // --174-- CAS[          107--( c == 'p' )-->130 ]
+                                        // --175--
+        else if  ( c == 'p' )        // --175-- CAS[          107--( c == 'p' )-->130 ]
         {
            
           state = 130; 
         }
-                                        // --175--
+                                        // --176--
         else {
-          state = 246;                // --175-- ERROR 
+          state = 256;                // --176-- ERROR 
         }
       } 
     break; 
-    case 108:                     // --175-- CAS[          108--( isHex(c) )-->109 ]
+    case 108:                     // --176-- CAS[          108--( isHex(c) )-->109 ]
       { 
-        if  ( isHex(c) )        // --175-- CAS[          108--( isHex(c) )-->109 ]
+        if  ( isHex(c) )        // --176-- CAS[          108--( isHex(c) )-->109 ]
         {
           data = valueHex(c); 
           state = 109; 
         }
-                                        // --176--
+                                        // --177--
         else {
-          state = 246;                // --176-- ERROR 
+          state = 256;                // --177-- ERROR 
         }
       } 
     break; 
-    case 109:                     // --176-- CAS[          109--( isHex(c) )-->110 ]
+    case 109:                     // --177-- CAS[          109--( isHex(c) )-->110 ]
       { 
-        if  ( isHex(c) )        // --176-- CAS[          109--( isHex(c) )-->110 ]
+        if  ( isHex(c) )        // --177-- CAS[          109--( isHex(c) )-->110 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 110; 
         }
-                                        // --177--
-        else if  ( c == '\n' )        // --177-- CAS[          109--( c == '\n' )-->245 ]
+                                        // --178--
+        else if  ( c == '\n' )        // --178-- CAS[          109--( c == '\n' )-->255 ]
         {
           
           {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalInput(data);
               if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
+                  printDebug_cdin();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --178--
+                                        // --179--
         else {
-          state = 246;                // --178-- ERROR 
+          state = 256;                // --179-- ERROR 
         }
       } 
     break; 
-    case 110:                     // --178-- CAS[          110--( isHex(c) )-->111 ]
+    case 110:                     // --179-- CAS[          110--( isHex(c) )-->111 ]
       { 
-        if  ( isHex(c) )        // --178-- CAS[          110--( isHex(c) )-->111 ]
+        if  ( isHex(c) )        // --179-- CAS[          110--( isHex(c) )-->111 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 111; 
         }
-                                        // --179--
-        else if  ( c == '\n' )        // --179-- CAS[          110--( c == '\n' )-->245 ]
+                                        // --180--
+        else if  ( c == '\n' )        // --180-- CAS[          110--( c == '\n' )-->255 ]
         {
           
           {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalInput(data);
               if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
+                  printDebug_cdin();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --180--
+                                        // --181--
         else {
-          state = 246;                // --180-- ERROR 
+          state = 256;                // --181-- ERROR 
         }
       } 
     break; 
-    case 111:                     // --180-- CAS[          111--( isHex(c) )-->112 ]
+    case 111:                     // --181-- CAS[          111--( isHex(c) )-->112 ]
       { 
-        if  ( isHex(c) )        // --180-- CAS[          111--( isHex(c) )-->112 ]
+        if  ( isHex(c) )        // --181-- CAS[          111--( isHex(c) )-->112 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 112; 
         }
-                                        // --181--
-        else if  ( c == '\n' )        // --181-- CAS[          111--( c == '\n' )-->245 ]
+                                        // --182--
+        else if  ( c == '\n' )        // --182-- CAS[          111--( c == '\n' )-->255 ]
         {
           
           {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalInput(data);
               if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
+                  printDebug_cdin();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --182--
+                                        // --183--
         else {
-          state = 246;                // --182-- ERROR 
+          state = 256;                // --183-- ERROR 
         }
       } 
     break; 
-    case 112:                     // --182-- CAS[          112--( isHex(c) )-->113 ]
+    case 112:                     // --183-- CAS[          112--( isHex(c) )-->113 ]
       { 
-        if  ( isHex(c) )        // --182-- CAS[          112--( isHex(c) )-->113 ]
+        if  ( isHex(c) )        // --183-- CAS[          112--( isHex(c) )-->113 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 113; 
         }
-                                        // --183--
-        else if  ( c == '\n' )        // --183-- CAS[          112--( c == '\n' )-->245 ]
+                                        // --184--
+        else if  ( c == '\n' )        // --184-- CAS[          112--( c == '\n' )-->255 ]
         {
           
           {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalInput(data);
               if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
+                  printDebug_cdin();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --184--
+                                        // --185--
         else {
-          state = 246;                // --184-- ERROR 
+          state = 256;                // --185-- ERROR 
         }
       } 
     break; 
-    case 113:                     // --184-- CAS[          113--( isHex(c) )-->114 ]
+    case 113:                     // --185-- CAS[          113--( isHex(c) )-->114 ]
       { 
-        if  ( isHex(c) )        // --184-- CAS[          113--( isHex(c) )-->114 ]
+        if  ( isHex(c) )        // --185-- CAS[          113--( isHex(c) )-->114 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 114; 
         }
-                                        // --185--
-        else if  ( c == '\n' )        // --185-- CAS[          113--( c == '\n' )-->245 ]
+                                        // --186--
+        else if  ( c == '\n' )        // --186-- CAS[          113--( c == '\n' )-->255 ]
         {
           
           {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalInput(data);
               if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
+                  printDebug_cdin();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --186--
+                                        // --187--
         else {
-          state = 246;                // --186-- ERROR 
+          state = 256;                // --187-- ERROR 
         }
       } 
     break; 
-    case 114:                     // --186-- CAS[          114--( isHex(c) )-->115 ]
+    case 114:                     // --187-- CAS[          114--( isHex(c) )-->115 ]
       { 
-        if  ( isHex(c) )        // --186-- CAS[          114--( isHex(c) )-->115 ]
+        if  ( isHex(c) )        // --187-- CAS[          114--( isHex(c) )-->115 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 115; 
         }
-                                        // --187--
-        else if  ( c == '\n' )        // --187-- CAS[          114--( c == '\n' )-->245 ]
+                                        // --188--
+        else if  ( c == '\n' )        // --188-- CAS[          114--( c == '\n' )-->255 ]
         {
           
           {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalInput(data);
               if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
+                  printDebug_cdin();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --188--
+                                        // --189--
         else {
-          state = 246;                // --188-- ERROR 
+          state = 256;                // --189-- ERROR 
         }
       } 
     break; 
-    case 115:                     // --188-- CAS[          115--( isHex(c) )-->116 ]
+    case 115:                     // --189-- CAS[          115--( isHex(c) )-->116 ]
       { 
-        if  ( isHex(c) )        // --188-- CAS[          115--( isHex(c) )-->116 ]
+        if  ( isHex(c) )        // --189-- CAS[          115--( isHex(c) )-->116 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 116; 
         }
-                                        // --189--
-        else if  ( c == '\n' )        // --189-- CAS[          115--( c == '\n' )-->245 ]
-        {
-          
-          {
-              setDigitalInput(data);
-              if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --190--
-        else {
-          state = 246;                // --190-- ERROR 
-        }
-      } 
-    break; 
-    case 116:                     // --190-- CAS[          116--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --190-- CAS[          116--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --190-- CAS[          115--( c == '\n' )-->255 ]
         {
           
           {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalInput(data);
               if ( debug & 1) {
-                  Serial.print("cdin=");
-                  Serial.println(data,HEX);
+                  printDebug_cdin();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --191--
         else {
-          state = 246;                // --191-- ERROR 
+          state = 256;                // --191-- ERROR 
         }
       } 
     break; 
-    case 117:                     // --191-- CAS[          117--( c == 'b' )-->118 ]
+    case 116:                     // --191-- CAS[          116--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'b' )        // --191-- CAS[          117--( c == 'b' )-->118 ]
+        if  ( c == '\n' )        // --191-- CAS[          116--( c == '\n' )-->255 ]
+        {
+          
+          {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              setDigitalInput(data);
+              if ( debug & 1) {
+                  printDebug_cdin();
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --192--
+        else {
+          state = 256;                // --192-- ERROR 
+        }
+      } 
+    break; 
+    case 117:                     // --192-- CAS[          117--( c == 'b' )-->118 ]
+      { 
+        if  ( c == 'b' )        // --192-- CAS[          117--( c == 'b' )-->118 ]
         {
            
           state = 118; 
         }
-                                        // --192--
+                                        // --193--
         else {
-          state = 246;                // --192-- ERROR 
+          state = 256;                // --193-- ERROR 
         }
       } 
     break; 
-    case 118:                     // --192-- CAS[          118--( c == 'u' )-->119 ]
+    case 118:                     // --193-- CAS[          118--( c == 'u' )-->119 ]
       { 
-        if  ( c == 'u' )        // --192-- CAS[          118--( c == 'u' )-->119 ]
+        if  ( c == 'u' )        // --193-- CAS[          118--( c == 'u' )-->119 ]
         {
            
           state = 119; 
         }
-                                        // --193--
+                                        // --194--
         else {
-          state = 246;                // --193-- ERROR 
+          state = 256;                // --194-- ERROR 
         }
       } 
     break; 
-    case 119:                     // --193-- CAS[          119--( c == 'g' )-->120 ]
+    case 119:                     // --194-- CAS[          119--( c == 'g' )-->120 ]
       { 
-        if  ( c == 'g' )        // --193-- CAS[          119--( c == 'g' )-->120 ]
+        if  ( c == 'g' )        // --194-- CAS[          119--( c == 'g' )-->120 ]
         {
            
           state = 120; 
         }
-                                        // --194--
+                                        // --195--
         else {
-          state = 246;                // --194-- ERROR 
+          state = 256;                // --195-- ERROR 
         }
       } 
     break; 
-    case 120:                     // --194-- CAS[          120--( c == ':' )-->121 ]
+    case 120:                     // --195-- CAS[          120--( c == ':' )-->121 ]
       { 
-        if  ( c == ':' )        // --194-- CAS[          120--( c == ':' )-->121 ]
+        if  ( c == ':' )        // --195-- CAS[          120--( c == ':' )-->121 ]
         {
            
           state = 121; 
         }
-                                        // --195--
+                                        // --196--
         else {
-          state = 246;                // --195-- ERROR 
+          state = 256;                // --196-- ERROR 
         }
       } 
     break; 
-    case 121:                     // --195-- CAS[          121--( isHex(c) )-->122 ]
+    case 121:                     // --196-- CAS[          121--( isHex(c) )-->122 ]
       { 
-        if  ( isHex(c) )        // --195-- CAS[          121--( isHex(c) )-->122 ]
+        if  ( isHex(c) )        // --196-- CAS[          121--( isHex(c) )-->122 ]
         {
           data = valueHex(c); 
           state = 122; 
         }
-                                        // --196--
+                                        // --197--
         else {
-          state = 246;                // --196-- ERROR 
+          state = 256;                // --197-- ERROR 
         }
       } 
     break; 
-    case 122:                     // --196-- CAS[          122--( isHex(c) )-->123 ]
+    case 122:                     // --197-- CAS[          122--( isHex(c) )-->123 ]
       { 
-        if  ( isHex(c) )        // --196-- CAS[          122--( isHex(c) )-->123 ]
+        if  ( isHex(c) )        // --197-- CAS[          122--( isHex(c) )-->123 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 123; 
         }
-                                        // --197--
-        else if  ( c == '\n' )        // --197-- CAS[          122--( c == '\n' )-->245 ]
+                                        // --198--
+        else if  ( c == '\n' )        // --198-- CAS[          122--( c == '\n' )-->255 ]
         {
            
           {
@@ -3425,23 +3456,23 @@ void loop() {
           
            }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --198--
+                                        // --199--
         else {
-          state = 246;                // --198-- ERROR 
+          state = 256;                // --199-- ERROR 
         }
       } 
     break; 
-    case 123:                     // --198-- CAS[          123--( isHex(c) )-->124 ]
+    case 123:                     // --199-- CAS[          123--( isHex(c) )-->124 ]
       { 
-        if  ( isHex(c) )        // --198-- CAS[          123--( isHex(c) )-->124 ]
+        if  ( isHex(c) )        // --199-- CAS[          123--( isHex(c) )-->124 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 124; 
         }
-                                        // --199--
-        else if  ( c == '\n' )        // --199-- CAS[          123--( c == '\n' )-->245 ]
+                                        // --200--
+        else if  ( c == '\n' )        // --200-- CAS[          123--( c == '\n' )-->255 ]
         {
            
           {
@@ -3453,23 +3484,23 @@ void loop() {
           
            }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --200--
+                                        // --201--
         else {
-          state = 246;                // --200-- ERROR 
+          state = 256;                // --201-- ERROR 
         }
       } 
     break; 
-    case 124:                     // --200-- CAS[          124--( isHex(c) )-->125 ]
+    case 124:                     // --201-- CAS[          124--( isHex(c) )-->125 ]
       { 
-        if  ( isHex(c) )        // --200-- CAS[          124--( isHex(c) )-->125 ]
+        if  ( isHex(c) )        // --201-- CAS[          124--( isHex(c) )-->125 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 125; 
         }
-                                        // --201--
-        else if  ( c == '\n' )        // --201-- CAS[          124--( c == '\n' )-->245 ]
+                                        // --202--
+        else if  ( c == '\n' )        // --202-- CAS[          124--( c == '\n' )-->255 ]
         {
            
           {
@@ -3481,23 +3512,23 @@ void loop() {
           
            }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --202--
+                                        // --203--
         else {
-          state = 246;                // --202-- ERROR 
+          state = 256;                // --203-- ERROR 
         }
       } 
     break; 
-    case 125:                     // --202-- CAS[          125--( isHex(c) )-->126 ]
+    case 125:                     // --203-- CAS[          125--( isHex(c) )-->126 ]
       { 
-        if  ( isHex(c) )        // --202-- CAS[          125--( isHex(c) )-->126 ]
+        if  ( isHex(c) )        // --203-- CAS[          125--( isHex(c) )-->126 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 126; 
         }
-                                        // --203--
-        else if  ( c == '\n' )        // --203-- CAS[          125--( c == '\n' )-->245 ]
+                                        // --204--
+        else if  ( c == '\n' )        // --204-- CAS[          125--( c == '\n' )-->255 ]
         {
            
           {
@@ -3509,23 +3540,23 @@ void loop() {
           
            }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --204--
+                                        // --205--
         else {
-          state = 246;                // --204-- ERROR 
+          state = 256;                // --205-- ERROR 
         }
       } 
     break; 
-    case 126:                     // --204-- CAS[          126--( isHex(c) )-->127 ]
+    case 126:                     // --205-- CAS[          126--( isHex(c) )-->127 ]
       { 
-        if  ( isHex(c) )        // --204-- CAS[          126--( isHex(c) )-->127 ]
+        if  ( isHex(c) )        // --205-- CAS[          126--( isHex(c) )-->127 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 127; 
         }
-                                        // --205--
-        else if  ( c == '\n' )        // --205-- CAS[          126--( c == '\n' )-->245 ]
+                                        // --206--
+        else if  ( c == '\n' )        // --206-- CAS[          126--( c == '\n' )-->255 ]
         {
            
           {
@@ -3537,23 +3568,23 @@ void loop() {
           
            }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --206--
+                                        // --207--
         else {
-          state = 246;                // --206-- ERROR 
+          state = 256;                // --207-- ERROR 
         }
       } 
     break; 
-    case 127:                     // --206-- CAS[          127--( isHex(c) )-->128 ]
+    case 127:                     // --207-- CAS[          127--( isHex(c) )-->128 ]
       { 
-        if  ( isHex(c) )        // --206-- CAS[          127--( isHex(c) )-->128 ]
+        if  ( isHex(c) )        // --207-- CAS[          127--( isHex(c) )-->128 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 128; 
         }
-                                        // --207--
-        else if  ( c == '\n' )        // --207-- CAS[          127--( c == '\n' )-->245 ]
+                                        // --208--
+        else if  ( c == '\n' )        // --208-- CAS[          127--( c == '\n' )-->255 ]
         {
            
           {
@@ -3565,45 +3596,23 @@ void loop() {
           
            }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --208--
+                                        // --209--
         else {
-          state = 246;                // --208-- ERROR 
+          state = 256;                // --209-- ERROR 
         }
       } 
     break; 
-    case 128:                     // --208-- CAS[          128--( isHex(c) )-->129 ]
+    case 128:                     // --209-- CAS[          128--( isHex(c) )-->129 ]
       { 
-        if  ( isHex(c) )        // --208-- CAS[          128--( isHex(c) )-->129 ]
+        if  ( isHex(c) )        // --209-- CAS[          128--( isHex(c) )-->129 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 129; 
         }
-                                        // --209--
-        else if  ( c == '\n' )        // --209-- CAS[          128--( c == '\n' )-->245 ]
-        {
-           
-          {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              debug =  data;
-              if ( debug & 1) {
-                  printDebug_cdebug();
-              }
-          
-           }
-           
-          state = 245; 
-        }
                                         // --210--
-        else {
-          state = 246;                // --210-- ERROR 
-        }
-      } 
-    break; 
-    case 129:                     // --210-- CAS[          129--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --210-- CAS[          129--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --210-- CAS[          128--( c == '\n' )-->255 ]
         {
            
           {
@@ -3615,49 +3624,71 @@ void loop() {
           
            }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --211--
         else {
-          state = 246;                // --211-- ERROR 
+          state = 256;                // --211-- ERROR 
         }
       } 
     break; 
-    case 130:                     // --211-- CAS[          130--( c == ':' )-->131 ]
+    case 129:                     // --211-- CAS[          129--( c == '\n' )-->255 ]
       { 
-        if  ( c == ':' )        // --211-- CAS[          130--( c == ':' )-->131 ]
+        if  ( c == '\n' )        // --211-- CAS[          129--( c == '\n' )-->255 ]
+        {
+           
+          {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              debug =  data;
+              if ( debug & 1) {
+                  printDebug_cdebug();
+              }
+          
+           }
+           
+          state = 255; 
+        }
+                                        // --212--
+        else {
+          state = 256;                // --212-- ERROR 
+        }
+      } 
+    break; 
+    case 130:                     // --212-- CAS[          130--( c == ':' )-->131 ]
+      { 
+        if  ( c == ':' )        // --212-- CAS[          130--( c == ':' )-->131 ]
         {
            
           state = 131; 
         }
-                                        // --212--
+                                        // --213--
         else {
-          state = 246;                // --212-- ERROR 
+          state = 256;                // --213-- ERROR 
         }
       } 
     break; 
-    case 131:                     // --212-- CAS[          131--( isHex(c) )-->132 ]
+    case 131:                     // --213-- CAS[          131--( isHex(c) )-->132 ]
       { 
-        if  ( isHex(c) )        // --212-- CAS[          131--( isHex(c) )-->132 ]
+        if  ( isHex(c) )        // --213-- CAS[          131--( isHex(c) )-->132 ]
         {
           data = valueHex(c); 
           state = 132; 
         }
-                                        // --213--
+                                        // --214--
         else {
-          state = 246;                // --213-- ERROR 
+          state = 256;                // --214-- ERROR 
         }
       } 
     break; 
-    case 132:                     // --213-- CAS[          132--( isHex(c) )-->133 ]
+    case 132:                     // --214-- CAS[          132--( isHex(c) )-->133 ]
       { 
-        if  ( isHex(c) )        // --213-- CAS[          132--( isHex(c) )-->133 ]
+        if  ( isHex(c) )        // --214-- CAS[          132--( isHex(c) )-->133 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 133; 
         }
-                                        // --214--
-        else if  ( c == '\n' )        // --214-- CAS[          132--( c == '\n' )-->245 ]
+                                        // --215--
+        else if  ( c == '\n' )        // --215-- CAS[          132--( c == '\n' )-->255 ]
         {
            
           {
@@ -3669,23 +3700,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --215--
+                                        // --216--
         else {
-          state = 246;                // --215-- ERROR 
+          state = 256;                // --216-- ERROR 
         }
       } 
     break; 
-    case 133:                     // --215-- CAS[          133--( isHex(c) )-->134 ]
+    case 133:                     // --216-- CAS[          133--( isHex(c) )-->134 ]
       { 
-        if  ( isHex(c) )        // --215-- CAS[          133--( isHex(c) )-->134 ]
+        if  ( isHex(c) )        // --216-- CAS[          133--( isHex(c) )-->134 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 134; 
         }
-                                        // --216--
-        else if  ( c == '\n' )        // --216-- CAS[          133--( c == '\n' )-->245 ]
+                                        // --217--
+        else if  ( c == '\n' )        // --217-- CAS[          133--( c == '\n' )-->255 ]
         {
            
           {
@@ -3697,23 +3728,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --217--
+                                        // --218--
         else {
-          state = 246;                // --217-- ERROR 
+          state = 256;                // --218-- ERROR 
         }
       } 
     break; 
-    case 134:                     // --217-- CAS[          134--( isHex(c) )-->135 ]
+    case 134:                     // --218-- CAS[          134--( isHex(c) )-->135 ]
       { 
-        if  ( isHex(c) )        // --217-- CAS[          134--( isHex(c) )-->135 ]
+        if  ( isHex(c) )        // --218-- CAS[          134--( isHex(c) )-->135 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 135; 
         }
-                                        // --218--
-        else if  ( c == '\n' )        // --218-- CAS[          134--( c == '\n' )-->245 ]
+                                        // --219--
+        else if  ( c == '\n' )        // --219-- CAS[          134--( c == '\n' )-->255 ]
         {
            
           {
@@ -3725,23 +3756,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --219--
+                                        // --220--
         else {
-          state = 246;                // --219-- ERROR 
+          state = 256;                // --220-- ERROR 
         }
       } 
     break; 
-    case 135:                     // --219-- CAS[          135--( isHex(c) )-->136 ]
+    case 135:                     // --220-- CAS[          135--( isHex(c) )-->136 ]
       { 
-        if  ( isHex(c) )        // --219-- CAS[          135--( isHex(c) )-->136 ]
+        if  ( isHex(c) )        // --220-- CAS[          135--( isHex(c) )-->136 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 136; 
         }
-                                        // --220--
-        else if  ( c == '\n' )        // --220-- CAS[          135--( c == '\n' )-->245 ]
+                                        // --221--
+        else if  ( c == '\n' )        // --221-- CAS[          135--( c == '\n' )-->255 ]
         {
            
           {
@@ -3753,23 +3784,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --221--
+                                        // --222--
         else {
-          state = 246;                // --221-- ERROR 
+          state = 256;                // --222-- ERROR 
         }
       } 
     break; 
-    case 136:                     // --221-- CAS[          136--( isHex(c) )-->137 ]
+    case 136:                     // --222-- CAS[          136--( isHex(c) )-->137 ]
       { 
-        if  ( isHex(c) )        // --221-- CAS[          136--( isHex(c) )-->137 ]
+        if  ( isHex(c) )        // --222-- CAS[          136--( isHex(c) )-->137 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 137; 
         }
-                                        // --222--
-        else if  ( c == '\n' )        // --222-- CAS[          136--( c == '\n' )-->245 ]
+                                        // --223--
+        else if  ( c == '\n' )        // --223-- CAS[          136--( c == '\n' )-->255 ]
         {
            
           {
@@ -3781,23 +3812,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --223--
+                                        // --224--
         else {
-          state = 246;                // --223-- ERROR 
+          state = 256;                // --224-- ERROR 
         }
       } 
     break; 
-    case 137:                     // --223-- CAS[          137--( isHex(c) )-->138 ]
+    case 137:                     // --224-- CAS[          137--( isHex(c) )-->138 ]
       { 
-        if  ( isHex(c) )        // --223-- CAS[          137--( isHex(c) )-->138 ]
+        if  ( isHex(c) )        // --224-- CAS[          137--( isHex(c) )-->138 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 138; 
         }
-                                        // --224--
-        else if  ( c == '\n' )        // --224-- CAS[          137--( c == '\n' )-->245 ]
+                                        // --225--
+        else if  ( c == '\n' )        // --225-- CAS[          137--( c == '\n' )-->255 ]
         {
            
           {
@@ -3809,45 +3840,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --225--
+                                        // --226--
         else {
-          state = 246;                // --225-- ERROR 
+          state = 256;                // --226-- ERROR 
         }
       } 
     break; 
-    case 138:                     // --225-- CAS[          138--( isHex(c) )-->139 ]
+    case 138:                     // --226-- CAS[          138--( isHex(c) )-->139 ]
       { 
-        if  ( isHex(c) )        // --225-- CAS[          138--( isHex(c) )-->139 ]
+        if  ( isHex(c) )        // --226-- CAS[          138--( isHex(c) )-->139 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 139; 
         }
-                                        // --226--
-        else if  ( c == '\n' )        // --226-- CAS[          138--( c == '\n' )-->245 ]
-        {
-           
-          {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              setDigitalInputPullup(data);
-              if ( debug & 1) {
-                  printDebug_cdinp();
-                  
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --227--
-        else {
-          state = 246;                // --227-- ERROR 
-        }
-      } 
-    break; 
-    case 139:                     // --227-- CAS[          139--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --227-- CAS[          139--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --227-- CAS[          138--( c == '\n' )-->255 ]
         {
            
           {
@@ -3859,337 +3868,359 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --228--
         else {
-          state = 246;                // --228-- ERROR 
+          state = 256;                // --228-- ERROR 
         }
       } 
     break; 
-    case 140:                     // --228-- CAS[          140--( c == 'u' )-->141 ]
+    case 139:                     // --228-- CAS[          139--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'u' )        // --228-- CAS[          140--( c == 'u' )-->141 ]
+        if  ( c == '\n' )        // --228-- CAS[          139--( c == '\n' )-->255 ]
+        {
+           
+          {
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              setDigitalInputPullup(data);
+              if ( debug & 1) {
+                  printDebug_cdinp();
+                  
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --229--
+        else {
+          state = 256;                // --229-- ERROR 
+        }
+      } 
+    break; 
+    case 140:                     // --229-- CAS[          140--( c == 'u' )-->141 ]
+      { 
+        if  ( c == 'u' )        // --229-- CAS[          140--( c == 'u' )-->141 ]
         {
            
           state = 141; 
         }
-                                        // --229--
+                                        // --230--
         else {
-          state = 246;                // --229-- ERROR 
+          state = 256;                // --230-- ERROR 
         }
       } 
     break; 
-    case 141:                     // --229-- CAS[          141--( c == 't' )-->142 ]
+    case 141:                     // --230-- CAS[          141--( c == 't' )-->142 ]
       { 
-        if  ( c == 't' )        // --229-- CAS[          141--( c == 't' )-->142 ]
+        if  ( c == 't' )        // --230-- CAS[          141--( c == 't' )-->142 ]
         {
            
           state = 142; 
         }
-                                        // --230--
+                                        // --231--
         else {
-          state = 246;                // --230-- ERROR 
+          state = 256;                // --231-- ERROR 
         }
       } 
     break; 
-    case 142:                     // --230-- CAS[          142--( c == ':' )-->143 ]
+    case 142:                     // --231-- CAS[          142--( c == ':' )-->143 ]
       { 
-        if  ( c == ':' )        // --230-- CAS[          142--( c == ':' )-->143 ]
+        if  ( c == ':' )        // --231-- CAS[          142--( c == ':' )-->143 ]
         {
            
           state = 143; 
         }
-                                        // --231--
+                                        // --232--
         else {
-          state = 246;                // --231-- ERROR 
+          state = 256;                // --232-- ERROR 
         }
       } 
     break; 
-    case 143:                     // --231-- CAS[          143--( isHex(c) )-->144 ]
+    case 143:                     // --232-- CAS[          143--( isHex(c) )-->144 ]
       { 
-        if  ( isHex(c) )        // --231-- CAS[          143--( isHex(c) )-->144 ]
+        if  ( isHex(c) )        // --232-- CAS[          143--( isHex(c) )-->144 ]
         {
           data = valueHex(c); 
           state = 144; 
         }
-                                        // --232--
+                                        // --233--
         else {
-          state = 246;                // --232-- ERROR 
+          state = 256;                // --233-- ERROR 
         }
       } 
     break; 
-    case 144:                     // --232-- CAS[          144--( isHex(c) )-->145 ]
+    case 144:                     // --233-- CAS[          144--( isHex(c) )-->145 ]
       { 
-        if  ( isHex(c) )        // --232-- CAS[          144--( isHex(c) )-->145 ]
+        if  ( isHex(c) )        // --233-- CAS[          144--( isHex(c) )-->145 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 145; 
         }
-                                        // --233--
-        else if  ( c == '\n' )        // --233-- CAS[          144--( c == '\n' )-->245 ]
+                                        // --234--
+        else if  ( c == '\n' )        // --234-- CAS[          144--( c == '\n' )-->255 ]
         {
           
           {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               if ( debug & 1) {
                   printDebug_cdout();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --234--
+                                        // --235--
         else {
-          state = 246;                // --234-- ERROR 
+          state = 256;                // --235-- ERROR 
         }
       } 
     break; 
-    case 145:                     // --234-- CAS[          145--( isHex(c) )-->146 ]
+    case 145:                     // --235-- CAS[          145--( isHex(c) )-->146 ]
       { 
-        if  ( isHex(c) )        // --234-- CAS[          145--( isHex(c) )-->146 ]
+        if  ( isHex(c) )        // --235-- CAS[          145--( isHex(c) )-->146 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 146; 
         }
-                                        // --235--
-        else if  ( c == '\n' )        // --235-- CAS[          145--( c == '\n' )-->245 ]
+                                        // --236--
+        else if  ( c == '\n' )        // --236-- CAS[          145--( c == '\n' )-->255 ]
         {
           
           {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               if ( debug & 1) {
                   printDebug_cdout();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --236--
+                                        // --237--
         else {
-          state = 246;                // --236-- ERROR 
+          state = 256;                // --237-- ERROR 
         }
       } 
     break; 
-    case 146:                     // --236-- CAS[          146--( isHex(c) )-->147 ]
+    case 146:                     // --237-- CAS[          146--( isHex(c) )-->147 ]
       { 
-        if  ( isHex(c) )        // --236-- CAS[          146--( isHex(c) )-->147 ]
+        if  ( isHex(c) )        // --237-- CAS[          146--( isHex(c) )-->147 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 147; 
         }
-                                        // --237--
-        else if  ( c == '\n' )        // --237-- CAS[          146--( c == '\n' )-->245 ]
+                                        // --238--
+        else if  ( c == '\n' )        // --238-- CAS[          146--( c == '\n' )-->255 ]
         {
           
           {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               if ( debug & 1) {
                   printDebug_cdout();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --238--
+                                        // --239--
         else {
-          state = 246;                // --238-- ERROR 
+          state = 256;                // --239-- ERROR 
         }
       } 
     break; 
-    case 147:                     // --238-- CAS[          147--( isHex(c) )-->148 ]
+    case 147:                     // --239-- CAS[          147--( isHex(c) )-->148 ]
       { 
-        if  ( isHex(c) )        // --238-- CAS[          147--( isHex(c) )-->148 ]
+        if  ( isHex(c) )        // --239-- CAS[          147--( isHex(c) )-->148 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 148; 
         }
-                                        // --239--
-        else if  ( c == '\n' )        // --239-- CAS[          147--( c == '\n' )-->245 ]
+                                        // --240--
+        else if  ( c == '\n' )        // --240-- CAS[          147--( c == '\n' )-->255 ]
         {
           
           {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               if ( debug & 1) {
                   printDebug_cdout();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --240--
+                                        // --241--
         else {
-          state = 246;                // --240-- ERROR 
+          state = 256;                // --241-- ERROR 
         }
       } 
     break; 
-    case 148:                     // --240-- CAS[          148--( isHex(c) )-->149 ]
+    case 148:                     // --241-- CAS[          148--( isHex(c) )-->149 ]
       { 
-        if  ( isHex(c) )        // --240-- CAS[          148--( isHex(c) )-->149 ]
+        if  ( isHex(c) )        // --241-- CAS[          148--( isHex(c) )-->149 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 149; 
         }
-                                        // --241--
-        else if  ( c == '\n' )        // --241-- CAS[          148--( c == '\n' )-->245 ]
+                                        // --242--
+        else if  ( c == '\n' )        // --242-- CAS[          148--( c == '\n' )-->255 ]
         {
           
           {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               if ( debug & 1) {
                   printDebug_cdout();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --242--
+                                        // --243--
         else {
-          state = 246;                // --242-- ERROR 
+          state = 256;                // --243-- ERROR 
         }
       } 
     break; 
-    case 149:                     // --242-- CAS[          149--( isHex(c) )-->150 ]
+    case 149:                     // --243-- CAS[          149--( isHex(c) )-->150 ]
       { 
-        if  ( isHex(c) )        // --242-- CAS[          149--( isHex(c) )-->150 ]
+        if  ( isHex(c) )        // --243-- CAS[          149--( isHex(c) )-->150 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 150; 
         }
-                                        // --243--
-        else if  ( c == '\n' )        // --243-- CAS[          149--( c == '\n' )-->245 ]
+                                        // --244--
+        else if  ( c == '\n' )        // --244-- CAS[          149--( c == '\n' )-->255 ]
         {
           
           {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               if ( debug & 1) {
                   printDebug_cdout();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --244--
+                                        // --245--
         else {
-          state = 246;                // --244-- ERROR 
+          state = 256;                // --245-- ERROR 
         }
       } 
     break; 
-    case 150:                     // --244-- CAS[          150--( isHex(c) )-->151 ]
+    case 150:                     // --245-- CAS[          150--( isHex(c) )-->151 ]
       { 
-        if  ( isHex(c) )        // --244-- CAS[          150--( isHex(c) )-->151 ]
+        if  ( isHex(c) )        // --245-- CAS[          150--( isHex(c) )-->151 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 151; 
         }
-                                        // --245--
-        else if  ( c == '\n' )        // --245-- CAS[          150--( c == '\n' )-->245 ]
-        {
-          
-          {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              setDigitalOutput(data);
-              if ( debug & 1) {
-                  printDebug_cdout();
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --246--
-        else {
-          state = 246;                // --246-- ERROR 
-        }
-      } 
-    break; 
-    case 151:                     // --246-- CAS[          151--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --246-- CAS[          151--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --246-- CAS[          150--( c == '\n' )-->255 ]
         {
           
           {
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
               setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
               if ( debug & 1) {
                   printDebug_cdout();
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --247--
         else {
-          state = 246;                // --247-- ERROR 
+          state = 256;                // --247-- ERROR 
         }
       } 
     break; 
-    case 152:                     // --247-- CAS[          152--( c == 'w' )-->153 ]
+    case 151:                     // --247-- CAS[          151--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'w' )        // --247-- CAS[          152--( c == 'w' )-->153 ]
+        if  ( c == '\n' )        // --247-- CAS[          151--( c == '\n' )-->255 ]
+        {
+          
+          {
+              setDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              if ( debug & 1) {
+                  printDebug_cdout();
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --248--
+        else {
+          state = 256;                // --248-- ERROR 
+        }
+      } 
+    break; 
+    case 152:                     // --248-- CAS[          152--( c == 'w' )-->153 ]
+      { 
+        if  ( c == 'w' )        // --248-- CAS[          152--( c == 'w' )-->153 ]
         {
            
           state = 153; 
         }
-                                        // --248--
+                                        // --249--
         else {
-          state = 246;                // --248-- ERROR 
+          state = 256;                // --249-- ERROR 
         }
       } 
     break; 
-    case 153:                     // --248-- CAS[          153--( c == 'm' )-->154 ]
+    case 153:                     // --249-- CAS[          153--( c == 'm' )-->154 ]
       { 
-        if  ( c == 'm' )        // --248-- CAS[          153--( c == 'm' )-->154 ]
+        if  ( c == 'm' )        // --249-- CAS[          153--( c == 'm' )-->154 ]
         {
            
           state = 154; 
         }
-                                        // --249--
+                                        // --250--
         else {
-          state = 246;                // --249-- ERROR 
+          state = 256;                // --250-- ERROR 
         }
       } 
     break; 
-    case 154:                     // --249-- CAS[          154--( c == ':' )-->155 ]
+    case 154:                     // --250-- CAS[          154--( c == ':' )-->155 ]
       { 
-        if  ( c == ':' )        // --249-- CAS[          154--( c == ':' )-->155 ]
+        if  ( c == ':' )        // --250-- CAS[          154--( c == ':' )-->155 ]
         {
            
           state = 155; 
         }
-                                        // --250--
+                                        // --251--
         else {
-          state = 246;                // --250-- ERROR 
+          state = 256;                // --251-- ERROR 
         }
       } 
     break; 
-    case 155:                     // --250-- CAS[          155--( isHex(c) )-->156 ]
+    case 155:                     // --251-- CAS[          155--( isHex(c) )-->156 ]
       { 
-        if  ( isHex(c) )        // --250-- CAS[          155--( isHex(c) )-->156 ]
+        if  ( isHex(c) )        // --251-- CAS[          155--( isHex(c) )-->156 ]
         {
           data = valueHex(c); 
           state = 156; 
         }
-                                        // --251--
+                                        // --252--
         else {
-          state = 246;                // --251-- ERROR 
+          state = 256;                // --252-- ERROR 
         }
       } 
     break; 
-    case 156:                     // --251-- CAS[          156--( isHex(c) )-->157 ]
+    case 156:                     // --252-- CAS[          156--( isHex(c) )-->157 ]
       { 
-        if  ( isHex(c) )        // --251-- CAS[          156--( isHex(c) )-->157 ]
+        if  ( isHex(c) )        // --252-- CAS[          156--( isHex(c) )-->157 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 157; 
         }
-                                        // --252--
-        else if  ( c == '\n' )        // --252-- CAS[          156--( c == '\n' )-->245 ]
+                                        // --253--
+        else if  ( c == '\n' )        // --253-- CAS[          156--( c == '\n' )-->255 ]
         {
           
           {
@@ -4201,23 +4232,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --253--
+                                        // --254--
         else {
-          state = 246;                // --253-- ERROR 
+          state = 256;                // --254-- ERROR 
         }
       } 
     break; 
-    case 157:                     // --253-- CAS[          157--( isHex(c) )-->158 ]
+    case 157:                     // --254-- CAS[          157--( isHex(c) )-->158 ]
       { 
-        if  ( isHex(c) )        // --253-- CAS[          157--( isHex(c) )-->158 ]
+        if  ( isHex(c) )        // --254-- CAS[          157--( isHex(c) )-->158 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 158; 
         }
-                                        // --254--
-        else if  ( c == '\n' )        // --254-- CAS[          157--( c == '\n' )-->245 ]
+                                        // --255--
+        else if  ( c == '\n' )        // --255-- CAS[          157--( c == '\n' )-->255 ]
         {
           
           {
@@ -4229,23 +4260,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --255--
+                                        // --256--
         else {
-          state = 246;                // --255-- ERROR 
+          state = 256;                // --256-- ERROR 
         }
       } 
     break; 
-    case 158:                     // --255-- CAS[          158--( isHex(c) )-->159 ]
+    case 158:                     // --256-- CAS[          158--( isHex(c) )-->159 ]
       { 
-        if  ( isHex(c) )        // --255-- CAS[          158--( isHex(c) )-->159 ]
+        if  ( isHex(c) )        // --256-- CAS[          158--( isHex(c) )-->159 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 159; 
         }
-                                        // --256--
-        else if  ( c == '\n' )        // --256-- CAS[          158--( c == '\n' )-->245 ]
+                                        // --257--
+        else if  ( c == '\n' )        // --257-- CAS[          158--( c == '\n' )-->255 ]
         {
           
           {
@@ -4257,23 +4288,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --257--
+                                        // --258--
         else {
-          state = 246;                // --257-- ERROR 
+          state = 256;                // --258-- ERROR 
         }
       } 
     break; 
-    case 159:                     // --257-- CAS[          159--( isHex(c) )-->160 ]
+    case 159:                     // --258-- CAS[          159--( isHex(c) )-->160 ]
       { 
-        if  ( isHex(c) )        // --257-- CAS[          159--( isHex(c) )-->160 ]
+        if  ( isHex(c) )        // --258-- CAS[          159--( isHex(c) )-->160 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 160; 
         }
-                                        // --258--
-        else if  ( c == '\n' )        // --258-- CAS[          159--( c == '\n' )-->245 ]
+                                        // --259--
+        else if  ( c == '\n' )        // --259-- CAS[          159--( c == '\n' )-->255 ]
         {
           
           {
@@ -4285,23 +4316,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --259--
+                                        // --260--
         else {
-          state = 246;                // --259-- ERROR 
+          state = 256;                // --260-- ERROR 
         }
       } 
     break; 
-    case 160:                     // --259-- CAS[          160--( isHex(c) )-->161 ]
+    case 160:                     // --260-- CAS[          160--( isHex(c) )-->161 ]
       { 
-        if  ( isHex(c) )        // --259-- CAS[          160--( isHex(c) )-->161 ]
+        if  ( isHex(c) )        // --260-- CAS[          160--( isHex(c) )-->161 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 161; 
         }
-                                        // --260--
-        else if  ( c == '\n' )        // --260-- CAS[          160--( c == '\n' )-->245 ]
+                                        // --261--
+        else if  ( c == '\n' )        // --261-- CAS[          160--( c == '\n' )-->255 ]
         {
           
           {
@@ -4313,23 +4344,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --261--
+                                        // --262--
         else {
-          state = 246;                // --261-- ERROR 
+          state = 256;                // --262-- ERROR 
         }
       } 
     break; 
-    case 161:                     // --261-- CAS[          161--( isHex(c) )-->162 ]
+    case 161:                     // --262-- CAS[          161--( isHex(c) )-->162 ]
       { 
-        if  ( isHex(c) )        // --261-- CAS[          161--( isHex(c) )-->162 ]
+        if  ( isHex(c) )        // --262-- CAS[          161--( isHex(c) )-->162 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 162; 
         }
-                                        // --262--
-        else if  ( c == '\n' )        // --262-- CAS[          161--( c == '\n' )-->245 ]
+                                        // --263--
+        else if  ( c == '\n' )        // --263-- CAS[          161--( c == '\n' )-->255 ]
         {
           
           {
@@ -4341,45 +4372,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --263--
+                                        // --264--
         else {
-          state = 246;                // --263-- ERROR 
+          state = 256;                // --264-- ERROR 
         }
       } 
     break; 
-    case 162:                     // --263-- CAS[          162--( isHex(c) )-->163 ]
+    case 162:                     // --264-- CAS[          162--( isHex(c) )-->163 ]
       { 
-        if  ( isHex(c) )        // --263-- CAS[          162--( isHex(c) )-->163 ]
+        if  ( isHex(c) )        // --264-- CAS[          162--( isHex(c) )-->163 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 163; 
         }
-                                        // --264--
-        else if  ( c == '\n' )        // --264-- CAS[          162--( c == '\n' )-->245 ]
-        {
-          
-          {
-              pwms = data;
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              setDigitalPWMOutput(data);
-              if ( debug & 1) {
-                  printDebug_cdpwm();
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --265--
-        else {
-          state = 246;                // --265-- ERROR 
-        }
-      } 
-    break; 
-    case 163:                     // --265-- CAS[          163--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --265-- CAS[          163--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --265-- CAS[          162--( c == '\n' )-->255 ]
         {
           
           {
@@ -4391,101 +4400,123 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --266--
         else {
-          state = 246;                // --266-- ERROR 
+          state = 256;                // --266-- ERROR 
         }
       } 
     break; 
-    case 164:                     // --266-- CAS[          164--( c == 'e' )-->165 ]
+    case 163:                     // --266-- CAS[          163--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'e' )        // --266-- CAS[          164--( c == 'e' )-->165 ]
+        if  ( c == '\n' )        // --266-- CAS[          163--( c == '\n' )-->255 ]
+        {
+          
+          {
+              pwms = data;
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              setDigitalPWMOutput(data);
+              if ( debug & 1) {
+                  printDebug_cdpwm();
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --267--
+        else {
+          state = 256;                // --267-- ERROR 
+        }
+      } 
+    break; 
+    case 164:                     // --267-- CAS[          164--( c == 'e' )-->165 ]
+      { 
+        if  ( c == 'e' )        // --267-- CAS[          164--( c == 'e' )-->165 ]
         {
            
           state = 165; 
         }
-                                        // --267--
+                                        // --268--
         else {
-          state = 246;                // --267-- ERROR 
+          state = 256;                // --268-- ERROR 
         }
       } 
     break; 
-    case 165:                     // --267-- CAS[          165--( c == 'r' )-->166 ]
+    case 165:                     // --268-- CAS[          165--( c == 'r' )-->166 ]
       { 
-        if  ( c == 'r' )        // --267-- CAS[          165--( c == 'r' )-->166 ]
+        if  ( c == 'r' )        // --268-- CAS[          165--( c == 'r' )-->166 ]
         {
            
           state = 166; 
         }
-                                        // --268--
+                                        // --269--
         else {
-          state = 246;                // --268-- ERROR 
+          state = 256;                // --269-- ERROR 
         }
       } 
     break; 
-    case 166:                     // --268-- CAS[          166--( c == 'v' )-->167 ]
+    case 166:                     // --269-- CAS[          166--( c == 'v' )-->167 ]
       { 
-        if  ( c == 'v' )        // --268-- CAS[          166--( c == 'v' )-->167 ]
+        if  ( c == 'v' )        // --269-- CAS[          166--( c == 'v' )-->167 ]
         {
            
           state = 167; 
         }
-                                        // --269--
+                                        // --270--
         else {
-          state = 246;                // --269-- ERROR 
+          state = 256;                // --270-- ERROR 
         }
       } 
     break; 
-    case 167:                     // --269-- CAS[          167--( c == 'o' )-->168 ]
+    case 167:                     // --270-- CAS[          167--( c == 'o' )-->168 ]
       { 
-        if  ( c == 'o' )        // --269-- CAS[          167--( c == 'o' )-->168 ]
+        if  ( c == 'o' )        // --270-- CAS[          167--( c == 'o' )-->168 ]
         {
            
           state = 168; 
         }
-                                        // --270--
+                                        // --271--
         else {
-          state = 246;                // --270-- ERROR 
+          state = 256;                // --271-- ERROR 
         }
       } 
     break; 
-    case 168:                     // --270-- CAS[          168--( c == ':' )-->169 ]
+    case 168:                     // --271-- CAS[          168--( c == ':' )-->169 ]
       { 
-        if  ( c == ':' )        // --270-- CAS[          168--( c == ':' )-->169 ]
+        if  ( c == ':' )        // --271-- CAS[          168--( c == ':' )-->169 ]
         {
            
           state = 169; 
         }
-                                        // --271--
+                                        // --272--
         else {
-          state = 246;                // --271-- ERROR 
+          state = 256;                // --272-- ERROR 
         }
       } 
     break; 
-    case 169:                     // --271-- CAS[          169--( isHex(c) )-->170 ]
+    case 169:                     // --272-- CAS[          169--( isHex(c) )-->170 ]
       { 
-        if  ( isHex(c) )        // --271-- CAS[          169--( isHex(c) )-->170 ]
+        if  ( isHex(c) )        // --272-- CAS[          169--( isHex(c) )-->170 ]
         {
           data = valueHex(c); 
           state = 170; 
         }
-                                        // --272--
+                                        // --273--
         else {
-          state = 246;                // --272-- ERROR 
+          state = 256;                // --273-- ERROR 
         }
       } 
     break; 
-    case 170:                     // --272-- CAS[          170--( isHex(c) )-->171 ]
+    case 170:                     // --273-- CAS[          170--( isHex(c) )-->171 ]
       { 
-        if  ( isHex(c) )        // --272-- CAS[          170--( isHex(c) )-->171 ]
+        if  ( isHex(c) )        // --273-- CAS[          170--( isHex(c) )-->171 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 171; 
         }
-                                        // --273--
-        else if  ( c == '\n' )        // --273-- CAS[          170--( c == '\n' )-->245 ]
+                                        // --274--
+        else if  ( c == '\n' )        // --274-- CAS[          170--( c == '\n' )-->255 ]
         {
            
           {
@@ -4498,23 +4529,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --274--
+                                        // --275--
         else {
-          state = 246;                // --274-- ERROR 
+          state = 256;                // --275-- ERROR 
         }
       } 
     break; 
-    case 171:                     // --274-- CAS[          171--( isHex(c) )-->172 ]
+    case 171:                     // --275-- CAS[          171--( isHex(c) )-->172 ]
       { 
-        if  ( isHex(c) )        // --274-- CAS[          171--( isHex(c) )-->172 ]
+        if  ( isHex(c) )        // --275-- CAS[          171--( isHex(c) )-->172 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 172; 
         }
-                                        // --275--
-        else if  ( c == '\n' )        // --275-- CAS[          171--( c == '\n' )-->245 ]
+                                        // --276--
+        else if  ( c == '\n' )        // --276-- CAS[          171--( c == '\n' )-->255 ]
         {
            
           {
@@ -4527,23 +4558,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --276--
+                                        // --277--
         else {
-          state = 246;                // --276-- ERROR 
+          state = 256;                // --277-- ERROR 
         }
       } 
     break; 
-    case 172:                     // --276-- CAS[          172--( isHex(c) )-->173 ]
+    case 172:                     // --277-- CAS[          172--( isHex(c) )-->173 ]
       { 
-        if  ( isHex(c) )        // --276-- CAS[          172--( isHex(c) )-->173 ]
+        if  ( isHex(c) )        // --277-- CAS[          172--( isHex(c) )-->173 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 173; 
         }
-                                        // --277--
-        else if  ( c == '\n' )        // --277-- CAS[          172--( c == '\n' )-->245 ]
+                                        // --278--
+        else if  ( c == '\n' )        // --278-- CAS[          172--( c == '\n' )-->255 ]
         {
            
           {
@@ -4556,23 +4587,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --278--
+                                        // --279--
         else {
-          state = 246;                // --278-- ERROR 
+          state = 256;                // --279-- ERROR 
         }
       } 
     break; 
-    case 173:                     // --278-- CAS[          173--( isHex(c) )-->174 ]
+    case 173:                     // --279-- CAS[          173--( isHex(c) )-->174 ]
       { 
-        if  ( isHex(c) )        // --278-- CAS[          173--( isHex(c) )-->174 ]
+        if  ( isHex(c) )        // --279-- CAS[          173--( isHex(c) )-->174 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 174; 
         }
-                                        // --279--
-        else if  ( c == '\n' )        // --279-- CAS[          173--( c == '\n' )-->245 ]
+                                        // --280--
+        else if  ( c == '\n' )        // --280-- CAS[          173--( c == '\n' )-->255 ]
         {
            
           {
@@ -4585,23 +4616,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --280--
+                                        // --281--
         else {
-          state = 246;                // --280-- ERROR 
+          state = 256;                // --281-- ERROR 
         }
       } 
     break; 
-    case 174:                     // --280-- CAS[          174--( isHex(c) )-->175 ]
+    case 174:                     // --281-- CAS[          174--( isHex(c) )-->175 ]
       { 
-        if  ( isHex(c) )        // --280-- CAS[          174--( isHex(c) )-->175 ]
+        if  ( isHex(c) )        // --281-- CAS[          174--( isHex(c) )-->175 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 175; 
         }
-                                        // --281--
-        else if  ( c == '\n' )        // --281-- CAS[          174--( c == '\n' )-->245 ]
+                                        // --282--
+        else if  ( c == '\n' )        // --282-- CAS[          174--( c == '\n' )-->255 ]
         {
            
           {
@@ -4614,23 +4645,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --282--
+                                        // --283--
         else {
-          state = 246;                // --282-- ERROR 
+          state = 256;                // --283-- ERROR 
         }
       } 
     break; 
-    case 175:                     // --282-- CAS[          175--( isHex(c) )-->176 ]
+    case 175:                     // --283-- CAS[          175--( isHex(c) )-->176 ]
       { 
-        if  ( isHex(c) )        // --282-- CAS[          175--( isHex(c) )-->176 ]
+        if  ( isHex(c) )        // --283-- CAS[          175--( isHex(c) )-->176 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 176; 
         }
-                                        // --283--
-        else if  ( c == '\n' )        // --283-- CAS[          175--( c == '\n' )-->245 ]
+                                        // --284--
+        else if  ( c == '\n' )        // --284-- CAS[          175--( c == '\n' )-->255 ]
         {
            
           {
@@ -4643,46 +4674,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --284--
+                                        // --285--
         else {
-          state = 246;                // --284-- ERROR 
+          state = 256;                // --285-- ERROR 
         }
       } 
     break; 
-    case 176:                     // --284-- CAS[          176--( isHex(c) )-->177 ]
+    case 176:                     // --285-- CAS[          176--( isHex(c) )-->177 ]
       { 
-        if  ( isHex(c) )        // --284-- CAS[          176--( isHex(c) )-->177 ]
+        if  ( isHex(c) )        // --285-- CAS[          176--( isHex(c) )-->177 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 177; 
         }
-                                        // --285--
-        else if  ( c == '\n' )        // --285-- CAS[          176--( c == '\n' )-->245 ]
-        {
-           
-          {
-              servos = data;
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              setDigitalServoOutput(data);
-              if ( debug & 1) {
-                  printDebug_cdservo();
-                  
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --286--
-        else {
-          state = 246;                // --286-- ERROR 
-        }
-      } 
-    break; 
-    case 177:                     // --286-- CAS[          177--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --286-- CAS[          177--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --286-- CAS[          176--( c == '\n' )-->255 ]
         {
            
           {
@@ -4695,94 +4703,117 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --287--
         else {
-          state = 246;                // --287-- ERROR 
+          state = 256;                // --287-- ERROR 
         }
       } 
     break; 
-    case 178:                     // --287-- CAS[          178--( c == 'a' )-->179 ]
+    case 177:                     // --287-- CAS[          177--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'a' )        // --287-- CAS[          178--( c == 'a' )-->179 ]
+        if  ( c == '\n' )        // --287-- CAS[          177--( c == '\n' )-->255 ]
+        {
+           
+          {
+              servos = data;
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              setDigitalServoOutput(data);
+              if ( debug & 1) {
+                  printDebug_cdservo();
+                  
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --288--
+        else {
+          state = 256;                // --288-- ERROR 
+        }
+      } 
+    break; 
+    case 178:                     // --288-- CAS[          178--( c == 'a' )-->179 ]
+      { 
+        if  ( c == 'a' )        // --288-- CAS[          178--( c == 'a' )-->179 ]
         {
            
           state = 179; 
         }
-                                        // --288--
-        else if  ( c == 'd' )        // --288-- CAS[          178--( c == 'd' )-->191 ]
+                                        // --289--
+        else if  ( c == 'd' )        // --289-- CAS[          178--( c == 'd' )-->191 ]
         {
            
           state = 191; 
         }
-                                        // --289--
+                                        // --290--
         else {
-          state = 246;                // --289-- ERROR 
+          state = 256;                // --290-- ERROR 
         }
       } 
     break; 
-    case 179:                     // --289-- CAS[          179--( c == 'i' )-->180 ]
+    case 179:                     // --290-- CAS[          179--( c == 'i' )-->180 ]
       { 
-        if  ( c == 'i' )        // --289-- CAS[          179--( c == 'i' )-->180 ]
+        if  ( c == 'i' )        // --290-- CAS[          179--( c == 'i' )-->180 ]
         {
            
           state = 180; 
         }
-                                        // --290--
+                                        // --291--
         else {
-          state = 246;                // --290-- ERROR 
+          state = 256;                // --291-- ERROR 
         }
       } 
     break; 
-    case 180:                     // --290-- CAS[          180--( c == 'n' )-->181 ]
+    case 180:                     // --291-- CAS[          180--( c == 'n' )-->181 ]
       { 
-        if  ( c == 'n' )        // --290-- CAS[          180--( c == 'n' )-->181 ]
+        if  ( c == 'n' )        // --291-- CAS[          180--( c == 'n' )-->181 ]
         {
            
           state = 181; 
         }
-                                        // --291--
+                                        // --292--
         else {
-          state = 246;                // --291-- ERROR 
+          state = 256;                // --292-- ERROR 
         }
       } 
     break; 
-    case 181:                     // --291-- CAS[          181--( c == ':' )-->182 ]
+    case 181:                     // --292-- CAS[          181--( c == ':' )-->182 ]
       { 
-        if  ( c == ':' )        // --291-- CAS[          181--( c == ':' )-->182 ]
+        if  ( c == ':' )        // --292-- CAS[          181--( c == ':' )-->182 ]
         {
            
           state = 182; 
         }
-                                        // --292--
+                                        // --293--
         else {
-          state = 246;                // --292-- ERROR 
+          state = 256;                // --293-- ERROR 
         }
       } 
     break; 
-    case 182:                     // --292-- CAS[          182--( isHex(c) )-->183 ]
+    case 182:                     // --293-- CAS[          182--( isHex(c) )-->183 ]
       { 
-        if  ( isHex(c) )        // --292-- CAS[          182--( isHex(c) )-->183 ]
+        if  ( isHex(c) )        // --293-- CAS[          182--( isHex(c) )-->183 ]
         {
           data = valueHex(c); 
           state = 183; 
         }
-                                        // --293--
+                                        // --294--
         else {
-          state = 246;                // --293-- ERROR 
+          state = 256;                // --294-- ERROR 
         }
       } 
     break; 
-    case 183:                     // --293-- CAS[          183--( isHex(c) )-->184 ]
+    case 183:                     // --294-- CAS[          183--( isHex(c) )-->184 ]
       { 
-        if  ( isHex(c) )        // --293-- CAS[          183--( isHex(c) )-->184 ]
+        if  ( isHex(c) )        // --294-- CAS[          183--( isHex(c) )-->184 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 184; 
         }
-                                        // --294--
-        else if  ( c == '\n' )        // --294-- CAS[          183--( c == '\n' )-->245 ]
+                                        // --295--
+        else if  ( c == '\n' )        // --295-- CAS[          183--( c == '\n' )-->255 ]
         {
           
           { 
@@ -4793,23 +4824,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --295--
+                                        // --296--
         else {
-          state = 246;                // --295-- ERROR 
+          state = 256;                // --296-- ERROR 
         }
       } 
     break; 
-    case 184:                     // --295-- CAS[          184--( isHex(c) )-->185 ]
+    case 184:                     // --296-- CAS[          184--( isHex(c) )-->185 ]
       { 
-        if  ( isHex(c) )        // --295-- CAS[          184--( isHex(c) )-->185 ]
+        if  ( isHex(c) )        // --296-- CAS[          184--( isHex(c) )-->185 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 185; 
         }
-                                        // --296--
-        else if  ( c == '\n' )        // --296-- CAS[          184--( c == '\n' )-->245 ]
+                                        // --297--
+        else if  ( c == '\n' )        // --297-- CAS[          184--( c == '\n' )-->255 ]
         {
           
           { 
@@ -4820,23 +4851,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --297--
+                                        // --298--
         else {
-          state = 246;                // --297-- ERROR 
+          state = 256;                // --298-- ERROR 
         }
       } 
     break; 
-    case 185:                     // --297-- CAS[          185--( isHex(c) )-->186 ]
+    case 185:                     // --298-- CAS[          185--( isHex(c) )-->186 ]
       { 
-        if  ( isHex(c) )        // --297-- CAS[          185--( isHex(c) )-->186 ]
+        if  ( isHex(c) )        // --298-- CAS[          185--( isHex(c) )-->186 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 186; 
         }
-                                        // --298--
-        else if  ( c == '\n' )        // --298-- CAS[          185--( c == '\n' )-->245 ]
+                                        // --299--
+        else if  ( c == '\n' )        // --299-- CAS[          185--( c == '\n' )-->255 ]
         {
           
           { 
@@ -4847,23 +4878,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --299--
+                                        // --300--
         else {
-          state = 246;                // --299-- ERROR 
+          state = 256;                // --300-- ERROR 
         }
       } 
     break; 
-    case 186:                     // --299-- CAS[          186--( isHex(c) )-->187 ]
+    case 186:                     // --300-- CAS[          186--( isHex(c) )-->187 ]
       { 
-        if  ( isHex(c) )        // --299-- CAS[          186--( isHex(c) )-->187 ]
+        if  ( isHex(c) )        // --300-- CAS[          186--( isHex(c) )-->187 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 187; 
         }
-                                        // --300--
-        else if  ( c == '\n' )        // --300-- CAS[          186--( c == '\n' )-->245 ]
+                                        // --301--
+        else if  ( c == '\n' )        // --301-- CAS[          186--( c == '\n' )-->255 ]
         {
           
           { 
@@ -4874,23 +4905,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --301--
+                                        // --302--
         else {
-          state = 246;                // --301-- ERROR 
+          state = 256;                // --302-- ERROR 
         }
       } 
     break; 
-    case 187:                     // --301-- CAS[          187--( isHex(c) )-->188 ]
+    case 187:                     // --302-- CAS[          187--( isHex(c) )-->188 ]
       { 
-        if  ( isHex(c) )        // --301-- CAS[          187--( isHex(c) )-->188 ]
+        if  ( isHex(c) )        // --302-- CAS[          187--( isHex(c) )-->188 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 188; 
         }
-                                        // --302--
-        else if  ( c == '\n' )        // --302-- CAS[          187--( c == '\n' )-->245 ]
+                                        // --303--
+        else if  ( c == '\n' )        // --303-- CAS[          187--( c == '\n' )-->255 ]
         {
           
           { 
@@ -4901,23 +4932,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --303--
+                                        // --304--
         else {
-          state = 246;                // --303-- ERROR 
+          state = 256;                // --304-- ERROR 
         }
       } 
     break; 
-    case 188:                     // --303-- CAS[          188--( isHex(c) )-->189 ]
+    case 188:                     // --304-- CAS[          188--( isHex(c) )-->189 ]
       { 
-        if  ( isHex(c) )        // --303-- CAS[          188--( isHex(c) )-->189 ]
+        if  ( isHex(c) )        // --304-- CAS[          188--( isHex(c) )-->189 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 189; 
         }
-                                        // --304--
-        else if  ( c == '\n' )        // --304-- CAS[          188--( c == '\n' )-->245 ]
+                                        // --305--
+        else if  ( c == '\n' )        // --305-- CAS[          188--( c == '\n' )-->255 ]
         {
           
           { 
@@ -4928,44 +4959,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --305--
+                                        // --306--
         else {
-          state = 246;                // --305-- ERROR 
+          state = 256;                // --306-- ERROR 
         }
       } 
     break; 
-    case 189:                     // --305-- CAS[          189--( isHex(c) )-->190 ]
+    case 189:                     // --306-- CAS[          189--( isHex(c) )-->190 ]
       { 
-        if  ( isHex(c) )        // --305-- CAS[          189--( isHex(c) )-->190 ]
+        if  ( isHex(c) )        // --306-- CAS[          189--( isHex(c) )-->190 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 190; 
         }
-                                        // --306--
-        else if  ( c == '\n' )        // --306-- CAS[          189--( c == '\n' )-->245 ]
-        {
-          
-          { 
-              analogAnalogInputs = data;
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              if ( debug & 1) {
-                  printDebug_caain();
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --307--
-        else {
-          state = 246;                // --307-- ERROR 
-        }
-      } 
-    break; 
-    case 190:                     // --307-- CAS[          190--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --307-- CAS[          190--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --307-- CAS[          189--( c == '\n' )-->255 ]
         {
           
           { 
@@ -4976,87 +4986,108 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --308--
         else {
-          state = 246;                // --308-- ERROR 
+          state = 256;                // --308-- ERROR 
         }
       } 
     break; 
-    case 191:                     // --308-- CAS[          191--( c == 'i' )-->192 ]
+    case 190:                     // --308-- CAS[          190--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'i' )        // --308-- CAS[          191--( c == 'i' )-->192 ]
+        if  ( c == '\n' )        // --308-- CAS[          190--( c == '\n' )-->255 ]
+        {
+          
+          { 
+              analogAnalogInputs = data;
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              if ( debug & 1) {
+                  printDebug_caain();
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --309--
+        else {
+          state = 256;                // --309-- ERROR 
+        }
+      } 
+    break; 
+    case 191:                     // --309-- CAS[          191--( c == 'i' )-->192 ]
+      { 
+        if  ( c == 'i' )        // --309-- CAS[          191--( c == 'i' )-->192 ]
         {
            
           state = 192; 
         }
-                                        // --309--
-        else if  ( c == 'o' )        // --309-- CAS[          191--( c == 'o' )-->203 ]
+                                        // --310--
+        else if  ( c == 'o' )        // --310-- CAS[          191--( c == 'o' )-->203 ]
         {
            
           state = 203; 
         }
-                                        // --310--
+                                        // --311--
         else {
-          state = 246;                // --310-- ERROR 
+          state = 256;                // --311-- ERROR 
         }
       } 
     break; 
-    case 192:                     // --310-- CAS[          192--( c == 'n' )-->193 ]
+    case 192:                     // --311-- CAS[          192--( c == 'n' )-->193 ]
       { 
-        if  ( c == 'n' )        // --310-- CAS[          192--( c == 'n' )-->193 ]
+        if  ( c == 'n' )        // --311-- CAS[          192--( c == 'n' )-->193 ]
         {
            
           state = 193; 
         }
-                                        // --311--
+                                        // --312--
         else {
-          state = 246;                // --311-- ERROR 
+          state = 256;                // --312-- ERROR 
         }
       } 
     break; 
-    case 193:                     // --311-- CAS[          193--( c == ':' )-->194 ]
+    case 193:                     // --312-- CAS[          193--( c == ':' )-->194 ]
       { 
-        if  ( c == ':' )        // --311-- CAS[          193--( c == ':' )-->194 ]
+        if  ( c == ':' )        // --312-- CAS[          193--( c == ':' )-->194 ]
         {
            
           state = 194; 
         }
-                                        // --312--
-        else if  ( c == 'p' )        // --312-- CAS[          193--( c == 'p' )-->215 ]
+                                        // --313--
+        else if  ( c == 'p' )        // --313-- CAS[          193--( c == 'p' )-->215 ]
         {
            
           state = 215; 
         }
-                                        // --313--
+                                        // --314--
         else {
-          state = 246;                // --313-- ERROR 
+          state = 256;                // --314-- ERROR 
         }
       } 
     break; 
-    case 194:                     // --313-- CAS[          194--( isHex(c) )-->195 ]
+    case 194:                     // --314-- CAS[          194--( isHex(c) )-->195 ]
       { 
-        if  ( isHex(c) )        // --313-- CAS[          194--( isHex(c) )-->195 ]
+        if  ( isHex(c) )        // --314-- CAS[          194--( isHex(c) )-->195 ]
         {
           data = valueHex(c); 
           state = 195; 
         }
-                                        // --314--
+                                        // --315--
         else {
-          state = 246;                // --314-- ERROR 
+          state = 256;                // --315-- ERROR 
         }
       } 
     break; 
-    case 195:                     // --314-- CAS[          195--( isHex(c) )-->196 ]
+    case 195:                     // --315-- CAS[          195--( isHex(c) )-->196 ]
       { 
-        if  ( isHex(c) )        // --314-- CAS[          195--( isHex(c) )-->196 ]
+        if  ( isHex(c) )        // --315-- CAS[          195--( isHex(c) )-->196 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 196; 
         }
-                                        // --315--
-        else if  ( c == '\n' )        // --315-- CAS[          195--( c == '\n' )-->245 ]
+                                        // --316--
+        else if  ( c == '\n' )        // --316-- CAS[          195--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5067,23 +5098,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --316--
+                                        // --317--
         else {
-          state = 246;                // --316-- ERROR 
+          state = 256;                // --317-- ERROR 
         }
       } 
     break; 
-    case 196:                     // --316-- CAS[          196--( isHex(c) )-->197 ]
+    case 196:                     // --317-- CAS[          196--( isHex(c) )-->197 ]
       { 
-        if  ( isHex(c) )        // --316-- CAS[          196--( isHex(c) )-->197 ]
+        if  ( isHex(c) )        // --317-- CAS[          196--( isHex(c) )-->197 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 197; 
         }
-                                        // --317--
-        else if  ( c == '\n' )        // --317-- CAS[          196--( c == '\n' )-->245 ]
+                                        // --318--
+        else if  ( c == '\n' )        // --318-- CAS[          196--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5094,23 +5125,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --318--
+                                        // --319--
         else {
-          state = 246;                // --318-- ERROR 
+          state = 256;                // --319-- ERROR 
         }
       } 
     break; 
-    case 197:                     // --318-- CAS[          197--( isHex(c) )-->198 ]
+    case 197:                     // --319-- CAS[          197--( isHex(c) )-->198 ]
       { 
-        if  ( isHex(c) )        // --318-- CAS[          197--( isHex(c) )-->198 ]
+        if  ( isHex(c) )        // --319-- CAS[          197--( isHex(c) )-->198 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 198; 
         }
-                                        // --319--
-        else if  ( c == '\n' )        // --319-- CAS[          197--( c == '\n' )-->245 ]
+                                        // --320--
+        else if  ( c == '\n' )        // --320-- CAS[          197--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5121,23 +5152,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --320--
+                                        // --321--
         else {
-          state = 246;                // --320-- ERROR 
+          state = 256;                // --321-- ERROR 
         }
       } 
     break; 
-    case 198:                     // --320-- CAS[          198--( isHex(c) )-->199 ]
+    case 198:                     // --321-- CAS[          198--( isHex(c) )-->199 ]
       { 
-        if  ( isHex(c) )        // --320-- CAS[          198--( isHex(c) )-->199 ]
+        if  ( isHex(c) )        // --321-- CAS[          198--( isHex(c) )-->199 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 199; 
         }
-                                        // --321--
-        else if  ( c == '\n' )        // --321-- CAS[          198--( c == '\n' )-->245 ]
+                                        // --322--
+        else if  ( c == '\n' )        // --322-- CAS[          198--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5148,23 +5179,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --322--
+                                        // --323--
         else {
-          state = 246;                // --322-- ERROR 
+          state = 256;                // --323-- ERROR 
         }
       } 
     break; 
-    case 199:                     // --322-- CAS[          199--( isHex(c) )-->200 ]
+    case 199:                     // --323-- CAS[          199--( isHex(c) )-->200 ]
       { 
-        if  ( isHex(c) )        // --322-- CAS[          199--( isHex(c) )-->200 ]
+        if  ( isHex(c) )        // --323-- CAS[          199--( isHex(c) )-->200 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 200; 
         }
-                                        // --323--
-        else if  ( c == '\n' )        // --323-- CAS[          199--( c == '\n' )-->245 ]
+                                        // --324--
+        else if  ( c == '\n' )        // --324-- CAS[          199--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5175,23 +5206,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --324--
+                                        // --325--
         else {
-          state = 246;                // --324-- ERROR 
+          state = 256;                // --325-- ERROR 
         }
       } 
     break; 
-    case 200:                     // --324-- CAS[          200--( isHex(c) )-->201 ]
+    case 200:                     // --325-- CAS[          200--( isHex(c) )-->201 ]
       { 
-        if  ( isHex(c) )        // --324-- CAS[          200--( isHex(c) )-->201 ]
+        if  ( isHex(c) )        // --325-- CAS[          200--( isHex(c) )-->201 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 201; 
         }
-                                        // --325--
-        else if  ( c == '\n' )        // --325-- CAS[          200--( c == '\n' )-->245 ]
+                                        // --326--
+        else if  ( c == '\n' )        // --326-- CAS[          200--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5202,44 +5233,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --326--
+                                        // --327--
         else {
-          state = 246;                // --326-- ERROR 
+          state = 256;                // --327-- ERROR 
         }
       } 
     break; 
-    case 201:                     // --326-- CAS[          201--( isHex(c) )-->202 ]
+    case 201:                     // --327-- CAS[          201--( isHex(c) )-->202 ]
       { 
-        if  ( isHex(c) )        // --326-- CAS[          201--( isHex(c) )-->202 ]
+        if  ( isHex(c) )        // --327-- CAS[          201--( isHex(c) )-->202 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 202; 
         }
-                                        // --327--
-        else if  ( c == '\n' )        // --327-- CAS[          201--( c == '\n' )-->245 ]
-        {
-          
-          { 
-              setAnalogDigitalInput(data);
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              if ( debug & 1) {
-                  printDebug_cadin();
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --328--
-        else {
-          state = 246;                // --328-- ERROR 
-        }
-      } 
-    break; 
-    case 202:                     // --328-- CAS[          202--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --328-- CAS[          202--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --328-- CAS[          201--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5250,75 +5260,96 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --329--
         else {
-          state = 246;                // --329-- ERROR 
+          state = 256;                // --329-- ERROR 
         }
       } 
     break; 
-    case 203:                     // --329-- CAS[          203--( c == 'u' )-->204 ]
+    case 202:                     // --329-- CAS[          202--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'u' )        // --329-- CAS[          203--( c == 'u' )-->204 ]
+        if  ( c == '\n' )        // --329-- CAS[          202--( c == '\n' )-->255 ]
+        {
+          
+          { 
+              setAnalogDigitalInput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              if ( debug & 1) {
+                  printDebug_cadin();
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --330--
+        else {
+          state = 256;                // --330-- ERROR 
+        }
+      } 
+    break; 
+    case 203:                     // --330-- CAS[          203--( c == 'u' )-->204 ]
+      { 
+        if  ( c == 'u' )        // --330-- CAS[          203--( c == 'u' )-->204 ]
         {
            
           state = 204; 
         }
-                                        // --330--
+                                        // --331--
         else {
-          state = 246;                // --330-- ERROR 
+          state = 256;                // --331-- ERROR 
         }
       } 
     break; 
-    case 204:                     // --330-- CAS[          204--( c == 't' )-->205 ]
+    case 204:                     // --331-- CAS[          204--( c == 't' )-->205 ]
       { 
-        if  ( c == 't' )        // --330-- CAS[          204--( c == 't' )-->205 ]
+        if  ( c == 't' )        // --331-- CAS[          204--( c == 't' )-->205 ]
         {
            
           state = 205; 
         }
-                                        // --331--
+                                        // --332--
         else {
-          state = 246;                // --331-- ERROR 
+          state = 256;                // --332-- ERROR 
         }
       } 
     break; 
-    case 205:                     // --331-- CAS[          205--( c == ':' )-->206 ]
+    case 205:                     // --332-- CAS[          205--( c == ':' )-->206 ]
       { 
-        if  ( c == ':' )        // --331-- CAS[          205--( c == ':' )-->206 ]
+        if  ( c == ':' )        // --332-- CAS[          205--( c == ':' )-->206 ]
         {
            
           state = 206; 
         }
-                                        // --332--
+                                        // --333--
         else {
-          state = 246;                // --332-- ERROR 
+          state = 256;                // --333-- ERROR 
         }
       } 
     break; 
-    case 206:                     // --332-- CAS[          206--( isHex(c) )-->207 ]
+    case 206:                     // --333-- CAS[          206--( isHex(c) )-->207 ]
       { 
-        if  ( isHex(c) )        // --332-- CAS[          206--( isHex(c) )-->207 ]
+        if  ( isHex(c) )        // --333-- CAS[          206--( isHex(c) )-->207 ]
         {
           data = valueHex(c); 
           state = 207; 
         }
-                                        // --333--
+                                        // --334--
         else {
-          state = 246;                // --333-- ERROR 
+          state = 256;                // --334-- ERROR 
         }
       } 
     break; 
-    case 207:                     // --333-- CAS[          207--( isHex(c) )-->208 ]
+    case 207:                     // --334-- CAS[          207--( isHex(c) )-->208 ]
       { 
-        if  ( isHex(c) )        // --333-- CAS[          207--( isHex(c) )-->208 ]
+        if  ( isHex(c) )        // --334-- CAS[          207--( isHex(c) )-->208 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 208; 
         }
-                                        // --334--
-        else if  ( c == '\n' )        // --334-- CAS[          207--( c == '\n' )-->245 ]
+                                        // --335--
+        else if  ( c == '\n' )        // --335-- CAS[          207--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5329,23 +5360,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --335--
+                                        // --336--
         else {
-          state = 246;                // --335-- ERROR 
+          state = 256;                // --336-- ERROR 
         }
       } 
     break; 
-    case 208:                     // --335-- CAS[          208--( isHex(c) )-->209 ]
+    case 208:                     // --336-- CAS[          208--( isHex(c) )-->209 ]
       { 
-        if  ( isHex(c) )        // --335-- CAS[          208--( isHex(c) )-->209 ]
+        if  ( isHex(c) )        // --336-- CAS[          208--( isHex(c) )-->209 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 209; 
         }
-                                        // --336--
-        else if  ( c == '\n' )        // --336-- CAS[          208--( c == '\n' )-->245 ]
+                                        // --337--
+        else if  ( c == '\n' )        // --337-- CAS[          208--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5356,23 +5387,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --337--
+                                        // --338--
         else {
-          state = 246;                // --337-- ERROR 
+          state = 256;                // --338-- ERROR 
         }
       } 
     break; 
-    case 209:                     // --337-- CAS[          209--( isHex(c) )-->210 ]
+    case 209:                     // --338-- CAS[          209--( isHex(c) )-->210 ]
       { 
-        if  ( isHex(c) )        // --337-- CAS[          209--( isHex(c) )-->210 ]
+        if  ( isHex(c) )        // --338-- CAS[          209--( isHex(c) )-->210 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 210; 
         }
-                                        // --338--
-        else if  ( c == '\n' )        // --338-- CAS[          209--( c == '\n' )-->245 ]
+                                        // --339--
+        else if  ( c == '\n' )        // --339-- CAS[          209--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5383,23 +5414,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --339--
+                                        // --340--
         else {
-          state = 246;                // --339-- ERROR 
+          state = 256;                // --340-- ERROR 
         }
       } 
     break; 
-    case 210:                     // --339-- CAS[          210--( isHex(c) )-->211 ]
+    case 210:                     // --340-- CAS[          210--( isHex(c) )-->211 ]
       { 
-        if  ( isHex(c) )        // --339-- CAS[          210--( isHex(c) )-->211 ]
+        if  ( isHex(c) )        // --340-- CAS[          210--( isHex(c) )-->211 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 211; 
         }
-                                        // --340--
-        else if  ( c == '\n' )        // --340-- CAS[          210--( c == '\n' )-->245 ]
+                                        // --341--
+        else if  ( c == '\n' )        // --341-- CAS[          210--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5410,23 +5441,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --341--
+                                        // --342--
         else {
-          state = 246;                // --341-- ERROR 
+          state = 256;                // --342-- ERROR 
         }
       } 
     break; 
-    case 211:                     // --341-- CAS[          211--( isHex(c) )-->212 ]
+    case 211:                     // --342-- CAS[          211--( isHex(c) )-->212 ]
       { 
-        if  ( isHex(c) )        // --341-- CAS[          211--( isHex(c) )-->212 ]
+        if  ( isHex(c) )        // --342-- CAS[          211--( isHex(c) )-->212 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 212; 
         }
-                                        // --342--
-        else if  ( c == '\n' )        // --342-- CAS[          211--( c == '\n' )-->245 ]
+                                        // --343--
+        else if  ( c == '\n' )        // --343-- CAS[          211--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5437,23 +5468,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --343--
+                                        // --344--
         else {
-          state = 246;                // --343-- ERROR 
+          state = 256;                // --344-- ERROR 
         }
       } 
     break; 
-    case 212:                     // --343-- CAS[          212--( isHex(c) )-->213 ]
+    case 212:                     // --344-- CAS[          212--( isHex(c) )-->213 ]
       { 
-        if  ( isHex(c) )        // --343-- CAS[          212--( isHex(c) )-->213 ]
+        if  ( isHex(c) )        // --344-- CAS[          212--( isHex(c) )-->213 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 213; 
         }
-                                        // --344--
-        else if  ( c == '\n' )        // --344-- CAS[          212--( c == '\n' )-->245 ]
+                                        // --345--
+        else if  ( c == '\n' )        // --345-- CAS[          212--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5464,44 +5495,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --345--
+                                        // --346--
         else {
-          state = 246;                // --345-- ERROR 
+          state = 256;                // --346-- ERROR 
         }
       } 
     break; 
-    case 213:                     // --345-- CAS[          213--( isHex(c) )-->214 ]
+    case 213:                     // --346-- CAS[          213--( isHex(c) )-->214 ]
       { 
-        if  ( isHex(c) )        // --345-- CAS[          213--( isHex(c) )-->214 ]
+        if  ( isHex(c) )        // --346-- CAS[          213--( isHex(c) )-->214 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 214; 
         }
-                                        // --346--
-        else if  ( c == '\n' )        // --346-- CAS[          213--( c == '\n' )-->245 ]
-        {
-          
-          { 
-              setAnalogDigitalOutput(data);
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              if ( debug & 1) {
-                  printDebug_cadout();
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --347--
-        else {
-          state = 246;                // --347-- ERROR 
-        }
-      } 
-    break; 
-    case 214:                     // --347-- CAS[          214--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --347-- CAS[          214--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --347-- CAS[          213--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5512,49 +5522,70 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --348--
         else {
-          state = 246;                // --348-- ERROR 
+          state = 256;                // --348-- ERROR 
         }
       } 
     break; 
-    case 215:                     // --348-- CAS[          215--( c == ':' )-->216 ]
+    case 214:                     // --348-- CAS[          214--( c == '\n' )-->255 ]
       { 
-        if  ( c == ':' )        // --348-- CAS[          215--( c == ':' )-->216 ]
+        if  ( c == '\n' )        // --348-- CAS[          214--( c == '\n' )-->255 ]
+        {
+          
+          { 
+              setAnalogDigitalOutput(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              if ( debug & 1) {
+                  printDebug_cadout();
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --349--
+        else {
+          state = 256;                // --349-- ERROR 
+        }
+      } 
+    break; 
+    case 215:                     // --349-- CAS[          215--( c == ':' )-->216 ]
+      { 
+        if  ( c == ':' )        // --349-- CAS[          215--( c == ':' )-->216 ]
         {
            
           state = 216; 
         }
-                                        // --349--
+                                        // --350--
         else {
-          state = 246;                // --349-- ERROR 
+          state = 256;                // --350-- ERROR 
         }
       } 
     break; 
-    case 216:                     // --349-- CAS[          216--( isHex(c) )-->217 ]
+    case 216:                     // --350-- CAS[          216--( isHex(c) )-->217 ]
       { 
-        if  ( isHex(c) )        // --349-- CAS[          216--( isHex(c) )-->217 ]
+        if  ( isHex(c) )        // --350-- CAS[          216--( isHex(c) )-->217 ]
         {
           data = valueHex(c); 
           state = 217; 
         }
-                                        // --350--
+                                        // --351--
         else {
-          state = 246;                // --350-- ERROR 
+          state = 256;                // --351-- ERROR 
         }
       } 
     break; 
-    case 217:                     // --350-- CAS[          217--( isHex(c) )-->218 ]
+    case 217:                     // --351-- CAS[          217--( isHex(c) )-->218 ]
       { 
-        if  ( isHex(c) )        // --350-- CAS[          217--( isHex(c) )-->218 ]
+        if  ( isHex(c) )        // --351-- CAS[          217--( isHex(c) )-->218 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 218; 
         }
-                                        // --351--
-        else if  ( c == '\n' )        // --351-- CAS[          217--( c == '\n' )-->245 ]
+                                        // --352--
+        else if  ( c == '\n' )        // --352-- CAS[          217--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5565,23 +5596,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --352--
+                                        // --353--
         else {
-          state = 246;                // --352-- ERROR 
+          state = 256;                // --353-- ERROR 
         }
       } 
     break; 
-    case 218:                     // --352-- CAS[          218--( isHex(c) )-->219 ]
+    case 218:                     // --353-- CAS[          218--( isHex(c) )-->219 ]
       { 
-        if  ( isHex(c) )        // --352-- CAS[          218--( isHex(c) )-->219 ]
+        if  ( isHex(c) )        // --353-- CAS[          218--( isHex(c) )-->219 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 219; 
         }
-                                        // --353--
-        else if  ( c == '\n' )        // --353-- CAS[          218--( c == '\n' )-->245 ]
+                                        // --354--
+        else if  ( c == '\n' )        // --354-- CAS[          218--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5592,23 +5623,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --354--
+                                        // --355--
         else {
-          state = 246;                // --354-- ERROR 
+          state = 256;                // --355-- ERROR 
         }
       } 
     break; 
-    case 219:                     // --354-- CAS[          219--( isHex(c) )-->220 ]
+    case 219:                     // --355-- CAS[          219--( isHex(c) )-->220 ]
       { 
-        if  ( isHex(c) )        // --354-- CAS[          219--( isHex(c) )-->220 ]
+        if  ( isHex(c) )        // --355-- CAS[          219--( isHex(c) )-->220 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 220; 
         }
-                                        // --355--
-        else if  ( c == '\n' )        // --355-- CAS[          219--( c == '\n' )-->245 ]
+                                        // --356--
+        else if  ( c == '\n' )        // --356-- CAS[          219--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5619,23 +5650,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --356--
+                                        // --357--
         else {
-          state = 246;                // --356-- ERROR 
+          state = 256;                // --357-- ERROR 
         }
       } 
     break; 
-    case 220:                     // --356-- CAS[          220--( isHex(c) )-->221 ]
+    case 220:                     // --357-- CAS[          220--( isHex(c) )-->221 ]
       { 
-        if  ( isHex(c) )        // --356-- CAS[          220--( isHex(c) )-->221 ]
+        if  ( isHex(c) )        // --357-- CAS[          220--( isHex(c) )-->221 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 221; 
         }
-                                        // --357--
-        else if  ( c == '\n' )        // --357-- CAS[          220--( c == '\n' )-->245 ]
+                                        // --358--
+        else if  ( c == '\n' )        // --358-- CAS[          220--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5646,23 +5677,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --358--
+                                        // --359--
         else {
-          state = 246;                // --358-- ERROR 
+          state = 256;                // --359-- ERROR 
         }
       } 
     break; 
-    case 221:                     // --358-- CAS[          221--( isHex(c) )-->222 ]
+    case 221:                     // --359-- CAS[          221--( isHex(c) )-->222 ]
       { 
-        if  ( isHex(c) )        // --358-- CAS[          221--( isHex(c) )-->222 ]
+        if  ( isHex(c) )        // --359-- CAS[          221--( isHex(c) )-->222 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 222; 
         }
-                                        // --359--
-        else if  ( c == '\n' )        // --359-- CAS[          221--( c == '\n' )-->245 ]
+                                        // --360--
+        else if  ( c == '\n' )        // --360-- CAS[          221--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5673,23 +5704,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --360--
+                                        // --361--
         else {
-          state = 246;                // --360-- ERROR 
+          state = 256;                // --361-- ERROR 
         }
       } 
     break; 
-    case 222:                     // --360-- CAS[          222--( isHex(c) )-->223 ]
+    case 222:                     // --361-- CAS[          222--( isHex(c) )-->223 ]
       { 
-        if  ( isHex(c) )        // --360-- CAS[          222--( isHex(c) )-->223 ]
+        if  ( isHex(c) )        // --361-- CAS[          222--( isHex(c) )-->223 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 223; 
         }
-                                        // --361--
-        else if  ( c == '\n' )        // --361-- CAS[          222--( c == '\n' )-->245 ]
+                                        // --362--
+        else if  ( c == '\n' )        // --362-- CAS[          222--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5700,44 +5731,23 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
-                                        // --362--
+                                        // --363--
         else {
-          state = 246;                // --362-- ERROR 
+          state = 256;                // --363-- ERROR 
         }
       } 
     break; 
-    case 223:                     // --362-- CAS[          223--( isHex(c) )-->224 ]
+    case 223:                     // --363-- CAS[          223--( isHex(c) )-->224 ]
       { 
-        if  ( isHex(c) )        // --362-- CAS[          223--( isHex(c) )-->224 ]
+        if  ( isHex(c) )        // --363-- CAS[          223--( isHex(c) )-->224 ]
         {
           data = (data<<4) | valueHex(c); 
           state = 224; 
         }
-                                        // --363--
-        else if  ( c == '\n' )        // --363-- CAS[          223--( c == '\n' )-->245 ]
-        {
-          
-          { 
-              setAnalogDigitalInputPullup(data);
-              stateMachine(STATEMACHINE_EVENT_CONFIG);
-              if ( debug & 1) {
-                  printDebug_cadinp();
-              }
-          }
-           
-          state = 245; 
-        }
                                         // --364--
-        else {
-          state = 246;                // --364-- ERROR 
-        }
-      } 
-    break; 
-    case 224:                     // --364-- CAS[          224--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --364-- CAS[          224--( c == '\n' )-->245 ]
+        else if  ( c == '\n' )        // --364-- CAS[          223--( c == '\n' )-->255 ]
         {
           
           { 
@@ -5748,294 +5758,450 @@ void loop() {
               }
           }
            
-          state = 245; 
+          state = 255; 
         }
                                         // --365--
         else {
-          state = 246;                // --365-- ERROR 
+          state = 256;                // --365-- ERROR 
         }
       } 
     break; 
-    case 225:                     // --365-- CAS[          225--( c == 'e' )-->226 ]
+    case 224:                     // --365-- CAS[          224--( c == '\n' )-->255 ]
       { 
-        if  ( c == 'e' )        // --365-- CAS[          225--( c == 'e' )-->226 ]
+        if  ( c == '\n' )        // --365-- CAS[          224--( c == '\n' )-->255 ]
+        {
+          
+          { 
+              setAnalogDigitalInputPullup(data);
+              stateMachine(STATEMACHINE_EVENT_CONFIG);
+              if ( debug & 1) {
+                  printDebug_cadinp();
+              }
+          }
+           
+          state = 255; 
+        }
+                                        // --366--
+        else {
+          state = 256;                // --366-- ERROR 
+        }
+      } 
+    break; 
+    case 225:                     // --366-- CAS[          225--( c == 'i' )-->226 ]
+      { 
+        if  ( c == 'i' )        // --366-- CAS[          225--( c == 'i' )-->226 ]
         {
            
           state = 226; 
         }
-                                        // --366--
+                                        // --367--
         else {
-          state = 246;                // --366-- ERROR 
+          state = 256;                // --367-- ERROR 
         }
       } 
     break; 
-    case 226:                     // --366-- CAS[          226--( c == 'r' )-->227 ]
+    case 226:                     // --367-- CAS[          226--( c == 's' )-->227 ]
       { 
-        if  ( c == 'r' )        // --366-- CAS[          226--( c == 'r' )-->227 ]
+        if  ( c == 's' )        // --367-- CAS[          226--( c == 's' )-->227 ]
         {
            
           state = 227; 
         }
-                                        // --367--
+                                        // --368--
         else {
-          state = 246;                // --367-- ERROR 
+          state = 256;                // --368-- ERROR 
         }
       } 
     break; 
-    case 227:                     // --367-- CAS[          227--( c == 's' )-->228 ]
+    case 227:                     // --368-- CAS[          227--( c == 'c' )-->228 ]
       { 
-        if  ( c == 's' )        // --367-- CAS[          227--( c == 's' )-->228 ]
+        if  ( c == 'c' )        // --368-- CAS[          227--( c == 'c' )-->228 ]
         {
            
           state = 228; 
         }
-                                        // --368--
+                                        // --369--
         else {
-          state = 246;                // --368-- ERROR 
+          state = 256;                // --369-- ERROR 
         }
       } 
     break; 
-    case 228:                     // --368-- CAS[          228--( c == 'i' )-->229 ]
+    case 228:                     // --369-- CAS[          228--( c == 'o' )-->229 ]
       { 
-        if  ( c == 'i' )        // --368-- CAS[          228--( c == 'i' )-->229 ]
+        if  ( c == 'o' )        // --369-- CAS[          228--( c == 'o' )-->229 ]
         {
            
           state = 229; 
         }
-                                        // --369--
+                                        // --370--
         else {
-          state = 246;                // --369-- ERROR 
+          state = 256;                // --370-- ERROR 
         }
       } 
     break; 
-    case 229:                     // --369-- CAS[          229--( c == 'o' )-->230 ]
+    case 229:                     // --370-- CAS[          229--( c == 'n' )-->230 ]
       { 
-        if  ( c == 'o' )        // --369-- CAS[          229--( c == 'o' )-->230 ]
+        if  ( c == 'n' )        // --370-- CAS[          229--( c == 'n' )-->230 ]
         {
            
           state = 230; 
         }
-                                        // --370--
+                                        // --371--
         else {
-          state = 246;                // --370-- ERROR 
+          state = 256;                // --371-- ERROR 
         }
       } 
     break; 
-    case 230:                     // --370-- CAS[          230--( c == 'n' )-->231 ]
+    case 230:                     // --371-- CAS[          230--( c == 'n' )-->231 ]
       { 
-        if  ( c == 'n' )        // --370-- CAS[          230--( c == 'n' )-->231 ]
+        if  ( c == 'n' )        // --371-- CAS[          230--( c == 'n' )-->231 ]
         {
            
           state = 231; 
         }
-                                        // --371--
+                                        // --372--
         else {
-          state = 246;                // --371-- ERROR 
+          state = 256;                // --372-- ERROR 
         }
       } 
     break; 
-    case 231:                     // --371-- CAS[          231--( c == ':' )-->232 ]
+    case 231:                     // --372-- CAS[          231--( c == 'e' )-->232 ]
       { 
-        if  ( c == ':' )        // --371-- CAS[          231--( c == ':' )-->232 ]
+        if  ( c == 'e' )        // --372-- CAS[          231--( c == 'e' )-->232 ]
         {
            
           state = 232; 
         }
-                                        // --372--
-        else {
-          state = 246;                // --372-- ERROR 
-        }
-      } 
-    break; 
-    case 232:                     // --372-- CAS[          232--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --372-- CAS[          232--( c == '\n' )-->245 ]
-        {
-          
-          {
-              Serial.print("v:");
-              Serial.println(version);
-          }
-           
-          state = 245; 
-        }
                                         // --373--
         else {
-          state = 246;                // --373-- ERROR 
+          state = 256;                // --373-- ERROR 
         }
       } 
     break; 
-    case 233:                     // --373-- CAS[          233--( c == 'e' )-->234 ]
+    case 232:                     // --373-- CAS[          232--( c == 'c' )-->233 ]
       { 
-        if  ( c == 'e' )        // --373-- CAS[          233--( c == 'e' )-->234 ]
+        if  ( c == 'c' )        // --373-- CAS[          232--( c == 'c' )-->233 ]
+        {
+           
+          state = 233; 
+        }
+                                        // --374--
+        else {
+          state = 256;                // --374-- ERROR 
+        }
+      } 
+    break; 
+    case 233:                     // --374-- CAS[          233--( c == 't' )-->234 ]
+      { 
+        if  ( c == 't' )        // --374-- CAS[          233--( c == 't' )-->234 ]
         {
            
           state = 234; 
         }
-                                        // --374--
-        else {
-          state = 246;                // --374-- ERROR 
-        }
-      } 
-    break; 
-    case 234:                     // --374-- CAS[          234--( c == 'r' )-->235 ]
-      { 
-        if  ( c == 'r' )        // --374-- CAS[          234--( c == 'r' )-->235 ]
-        {
-           
-          state = 235; 
-        }
                                         // --375--
         else {
-          state = 246;                // --375-- ERROR 
+          state = 256;                // --375-- ERROR 
         }
       } 
     break; 
-    case 235:                     // --375-- CAS[          235--( c == 's' )-->236 ]
+    case 234:                     // --375-- CAS[          234--( c == '\n' )-->255 ]
       { 
-        if  ( c == 's' )        // --375-- CAS[          235--( c == 's' )-->236 ]
+        if  ( c == '\n' )        // --375-- CAS[          234--( c == '\n' )-->255 ]
+        {
+          
+          { 
+              stateMachine(STATEMACHINE_EVENT_DISCONNECT);
+              Serial.println( F("disconnect"));
+          }
+           
+          state = 255; 
+        }
+                                        // --376--
+        else {
+          state = 256;                // --376-- ERROR 
+        }
+      } 
+    break; 
+    case 235:                     // --376-- CAS[          235--( c == 'e' )-->236 ]
+      { 
+        if  ( c == 'e' )        // --376-- CAS[          235--( c == 'e' )-->236 ]
         {
            
           state = 236; 
         }
-                                        // --376--
+                                        // --377--
         else {
-          state = 246;                // --376-- ERROR 
+          state = 256;                // --377-- ERROR 
         }
       } 
     break; 
-    case 236:                     // --376-- CAS[          236--( c == 'i' )-->237 ]
+    case 236:                     // --377-- CAS[          236--( c == 'r' )-->237 ]
       { 
-        if  ( c == 'i' )        // --376-- CAS[          236--( c == 'i' )-->237 ]
+        if  ( c == 'r' )        // --377-- CAS[          236--( c == 'r' )-->237 ]
         {
            
           state = 237; 
         }
-                                        // --377--
+                                        // --378--
         else {
-          state = 246;                // --377-- ERROR 
+          state = 256;                // --378-- ERROR 
         }
       } 
     break; 
-    case 237:                     // --377-- CAS[          237--( c == 'o' )-->238 ]
+    case 237:                     // --378-- CAS[          237--( c == 's' )-->238 ]
       { 
-        if  ( c == 'o' )        // --377-- CAS[          237--( c == 'o' )-->238 ]
+        if  ( c == 's' )        // --378-- CAS[          237--( c == 's' )-->238 ]
         {
            
           state = 238; 
         }
-                                        // --378--
+                                        // --379--
         else {
-          state = 246;                // --378-- ERROR 
+          state = 256;                // --379-- ERROR 
         }
       } 
     break; 
-    case 238:                     // --378-- CAS[          238--( c == 'n' )-->239 ]
+    case 238:                     // --379-- CAS[          238--( c == 'i' )-->239 ]
       { 
-        if  ( c == 'n' )        // --378-- CAS[          238--( c == 'n' )-->239 ]
+        if  ( c == 'i' )        // --379-- CAS[          238--( c == 'i' )-->239 ]
         {
            
           state = 239; 
         }
-                                        // --379--
+                                        // --380--
         else {
-          state = 246;                // --379-- ERROR 
+          state = 256;                // --380-- ERROR 
         }
       } 
     break; 
-    case 239:                     // --379-- CAS[          239--( c == '?' )-->240 ]
+    case 239:                     // --380-- CAS[          239--( c == 'o' )-->240 ]
       { 
-        if  ( c == '?' )        // --379-- CAS[          239--( c == '?' )-->240 ]
+        if  ( c == 'o' )        // --380-- CAS[          239--( c == 'o' )-->240 ]
         {
            
           state = 240; 
         }
-                                        // --380--
-        else {
-          state = 246;                // --380-- ERROR 
-        }
-      } 
-    break; 
-    case 240:                     // --380-- CAS[          240--( c == '\n' )-->245 ]
-      { 
-        if  ( c == '\n' )        // --380-- CAS[          240--( c == '\n' )-->245 ]
-        {
-          
-          {
-              Serial.print("v:");
-              Serial.println(version);
-          }
-           
-          state = 245; 
-        }
                                         // --381--
         else {
-          state = 246;                // --381-- ERROR 
+          state = 256;                // --381-- ERROR 
         }
       } 
     break; 
-    case 241:                     // --381-- CAS[          241--( c == 'r' )-->242 ]
+    case 240:                     // --381-- CAS[          240--( c == 'n' )-->241 ]
       { 
-        if  ( c == 'r' )        // --381-- CAS[          241--( c == 'r' )-->242 ]
+        if  ( c == 'n' )        // --381-- CAS[          240--( c == 'n' )-->241 ]
+        {
+           
+          state = 241; 
+        }
+                                        // --382--
+        else {
+          state = 256;                // --382-- ERROR 
+        }
+      } 
+    break; 
+    case 241:                     // --382-- CAS[          241--( c == ':' )-->242 ]
+      { 
+        if  ( c == ':' )        // --382-- CAS[          241--( c == ':' )-->242 ]
         {
            
           state = 242; 
         }
-                                        // --382--
-        else {
-          state = 246;                // --382-- ERROR 
-        }
-      } 
-    break; 
-    case 242:                     // --382-- CAS[          242--( c == 'r' )-->243 ]
-      { 
-        if  ( c == 'r' )        // --382-- CAS[          242--( c == 'r' )-->243 ]
-        {
-           
-          state = 243; 
-        }
                                         // --383--
         else {
-          state = 246;                // --383-- ERROR 
+          state = 256;                // --383-- ERROR 
         }
       } 
     break; 
-    case 243:                     // --383-- CAS[          243--( c == '?' )-->244 ]
+    case 242:                     // --383-- CAS[          242--( c == '\n' )-->255 ]
       { 
-        if  ( c == '?' )        // --383-- CAS[          243--( c == '?' )-->244 ]
+        if  ( c == '\n' )        // --383-- CAS[          242--( c == '\n' )-->255 ]
+        {
+          
+          {
+              Serial.print( F("v:"));
+              Serial.println(version);
+          }
+           
+          state = 255; 
+        }
+                                        // --384--
+        else {
+          state = 256;                // --384-- ERROR 
+        }
+      } 
+    break; 
+    case 243:                     // --384-- CAS[          243--( c == 'e' )-->244 ]
+      { 
+        if  ( c == 'e' )        // --384-- CAS[          243--( c == 'e' )-->244 ]
         {
            
           state = 244; 
         }
-                                        // --384--
+                                        // --385--
         else {
-          state = 246;                // --384-- ERROR 
+          state = 256;                // --385-- ERROR 
         }
       } 
     break; 
-    case 244:                     // --384-- CAS[          244--( c == '\n' )-->245 ]
+    case 244:                     // --385-- CAS[          244--( c == 'r' )-->245 ]
       { 
-        if  ( c == '\n' )        // --384-- CAS[          244--( c == '\n' )-->245 ]
+        if  ( c == 'r' )        // --385-- CAS[          244--( c == 'r' )-->245 ]
         {
-          
-          {
-              Serial.print("e:");
-              Serial.println(errorCount);
-          }
            
           state = 245; 
         }
+                                        // --386--
         else {
-          state = 246; // ERROR 
+          state = 256;                // --386-- ERROR 
+        }
+      } 
+    break; 
+    case 245:                     // --386-- CAS[          245--( c == 's' )-->246 ]
+      { 
+        if  ( c == 's' )        // --386-- CAS[          245--( c == 's' )-->246 ]
+        {
+           
+          state = 246; 
+        }
+                                        // --387--
+        else {
+          state = 256;                // --387-- ERROR 
+        }
+      } 
+    break; 
+    case 246:                     // --387-- CAS[          246--( c == 'i' )-->247 ]
+      { 
+        if  ( c == 'i' )        // --387-- CAS[          246--( c == 'i' )-->247 ]
+        {
+           
+          state = 247; 
+        }
+                                        // --388--
+        else {
+          state = 256;                // --388-- ERROR 
+        }
+      } 
+    break; 
+    case 247:                     // --388-- CAS[          247--( c == 'o' )-->248 ]
+      { 
+        if  ( c == 'o' )        // --388-- CAS[          247--( c == 'o' )-->248 ]
+        {
+           
+          state = 248; 
+        }
+                                        // --389--
+        else {
+          state = 256;                // --389-- ERROR 
+        }
+      } 
+    break; 
+    case 248:                     // --389-- CAS[          248--( c == 'n' )-->249 ]
+      { 
+        if  ( c == 'n' )        // --389-- CAS[          248--( c == 'n' )-->249 ]
+        {
+           
+          state = 249; 
+        }
+                                        // --390--
+        else {
+          state = 256;                // --390-- ERROR 
+        }
+      } 
+    break; 
+    case 249:                     // --390-- CAS[          249--( c == '?' )-->250 ]
+      { 
+        if  ( c == '?' )        // --390-- CAS[          249--( c == '?' )-->250 ]
+        {
+           
+          state = 250; 
+        }
+                                        // --391--
+        else {
+          state = 256;                // --391-- ERROR 
+        }
+      } 
+    break; 
+    case 250:                     // --391-- CAS[          250--( c == '\n' )-->255 ]
+      { 
+        if  ( c == '\n' )        // --391-- CAS[          250--( c == '\n' )-->255 ]
+        {
+          
+          {
+              Serial.print( F("v:"));
+              Serial.println(version);
+          }
+           
+          state = 255; 
+        }
+                                        // --392--
+        else {
+          state = 256;                // --392-- ERROR 
+        }
+      } 
+    break; 
+    case 251:                     // --392-- CAS[          251--( c == 'r' )-->252 ]
+      { 
+        if  ( c == 'r' )        // --392-- CAS[          251--( c == 'r' )-->252 ]
+        {
+           
+          state = 252; 
+        }
+                                        // --393--
+        else {
+          state = 256;                // --393-- ERROR 
+        }
+      } 
+    break; 
+    case 252:                     // --393-- CAS[          252--( c == 'r' )-->253 ]
+      { 
+        if  ( c == 'r' )        // --393-- CAS[          252--( c == 'r' )-->253 ]
+        {
+           
+          state = 253; 
+        }
+                                        // --394--
+        else {
+          state = 256;                // --394-- ERROR 
+        }
+      } 
+    break; 
+    case 253:                     // --394-- CAS[          253--( c == '?' )-->254 ]
+      { 
+        if  ( c == '?' )        // --394-- CAS[          253--( c == '?' )-->254 ]
+        {
+           
+          state = 254; 
+        }
+                                        // --395--
+        else {
+          state = 256;                // --395-- ERROR 
+        }
+      } 
+    break; 
+    case 254:                     // --395-- CAS[          254--( c == '\n' )-->255 ]
+      { 
+        if  ( c == '\n' )        // --395-- CAS[          254--( c == '\n' )-->255 ]
+        {
+          
+          {
+              Serial.print( F("e:"));
+              Serial.println(errorCount);
+          }
+           
+          state = 255; 
+        }
+        else {
+          state = 256; // ERROR 
         }
       } 
     break; 
 } // end switch state
-  if ( state == 245) 
+  if ( state == 255) 
     {
       state = 0;
     }
-    if ( state == 246) 
+    if ( state == 256) 
     {
       errorCount ++;
       state = 0;
