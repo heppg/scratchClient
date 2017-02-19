@@ -3,7 +3,7 @@
 # --------------------------------------------------------------------------------------------
 # Implementation of scratch Remote Sensor Protocol Client
 #
-# Copyright (C) 2013, 2016  Gerhard Hepp
+# Copyright (C) 2013, 2017  Gerhard Hepp
 #
 # This program is free software; you can redistribute it and/or modify it under the terms of 
 # the GNU General Public License as published by the Free Software Foundation; either version 2 
@@ -40,6 +40,11 @@
 # changes:
 # 
 changes = [
+'2017-02-18 arduino.ino, comment changes, additional ident reset command.',    
+'2017-02-17 bugfix: wrong config file did not cause program to terminate.',    
+'2017-02-14 singleton-ipc, added; added command line switch to select singleton logic',    
+'2017-02-13 singleton-pid, redesign, changes in shutdown logic',    
+'2017-02-12 UNO_Adapter, reconnect logic reworked; arduinoUno with added "disconnect"-command',    
 '2017-02-10 config tool to edit UNO_Adapter xml config files included.',    
 '2017-01-26 minor changes in log messages on scratch connection.',  
 '2017-01-16 improved connection handling and last-value in arduinoUNO adapter.',  
@@ -176,6 +181,9 @@ import threading
 import time
 
 import helper.logging
+import singleton.singletonIPC
+import singleton.singletonPID
+import singleton.singletonNONE
 
 commandlineHelp = """
 -host <ip>           Scratch Host ip or hostname, default 127.0.0.1
@@ -192,7 +200,14 @@ commandlineHelp = """
                      
 -gpioLib             set the gpiolibrary, default 'RPi_GPIO_GPIOManager'
                      deprecated
+                     
+-singletonPID        when multiple instances are running, report other instance and 
+                     terminate
+-singletonIPC        when multiple instances are running, terminate other instance
+                     used port 42003 (default from 2017-02-14)
+-singletonNONE       no singleton policy applied. For debug only
 
+                     default from 2017-02-14)
 web gui switches
 
 -nogui               do not show GUI
@@ -201,8 +216,6 @@ web gui switches
 
 debug and test switches
 
--forceActive         force active mode, even if GPIO library is 
-                     not available.
 -validate            Validate config and terminate.
 
 -h
@@ -210,7 +223,7 @@ debug and test switches
 -v                   verbose logging
 -d                   debug logging
 -license             print license and exit.
--changes             print changes list
+-changes             print changes list  and exit.
 
 """
 
@@ -228,6 +241,7 @@ DEFAULT_GUIREMOTE = False
 
 DEFAULT_PIDFILENAME = 'scratchClient.pid'
 
+DEFAULT_SINGLETON = 'IPC'
 
 BUFFER_SIZE = 240 #used to be 100
 SOCKET_TIMEOUT = 2
@@ -238,20 +252,18 @@ nogui = False
 guiRemote = DEFAULT_GUIREMOTE
 validate = False
 
-#forceSimulation = False
-forceActive = False
-
 configFileName = DEFAULT_CONFIGFILENAME
 portmappingFileName = DEFAULT_PORTMAPPINGFILENAME
 
 host = DEFAULT_HOST
 port = DEFAULT_PORT
 gpioLib = DEFAULT_GPIOLIB
+singletonFlag = DEFAULT_SINGLETON
 
 pidFileName = DEFAULT_PIDFILENAME
 
 gpl2 = """
- Copyright (C) 2013, 2016  Gerhard Hepp
+ Copyright (C) 2013, 2017  Gerhard Hepp
 
  This program is free software; you can redistribute it and/or modify it under the terms of 
  the GNU General Public License as published by the Free Software Foundation; either version 2 
@@ -274,6 +286,7 @@ class ScratchSender(threading.Thread):
     
     def __init__(self):
         threading.Thread.__init__(self)
+        self.setName("scratchSender")
         self._stop = threading.Event()
         self._lock = threading.Lock()
         
@@ -379,6 +392,7 @@ class ScratchListener(threading.Thread):
     
     def __init__(self, socket):
         threading.Thread.__init__(self)
+        self.setName("scratchListener")
         self.scratch_socket = socket
         self._stop = threading.Event()
         
@@ -392,7 +406,7 @@ class ScratchListener(threading.Thread):
     def run(self):
         """main listening routine to remote sensor protocol"""
         #print("ScratchListener thread started")
-        logger.debug("ScratchListener thread started")
+        logger.debug("scratchListener thread started")
         global scratchClient
         
         # 
@@ -496,7 +510,7 @@ class ScratchListener(threading.Thread):
                 scratchClient.event_disconnect()
                 self.stop()
                 continue
-        logger.debug("ScratchListener thread stopped")
+        logger.debug("scratchListener thread stopped")
         
     broadcast_pattern = re.compile('broadcast "([^"]*)"')
     
@@ -557,13 +571,19 @@ class ThreadManager:
         logger.debug("ThreadManager, cleanup_socket")
 
         for thread in self.socketThreads:
-            logger.debug("stop thread %s", str(thread))
+            logger.debug("cleanup_socket: stop thread %s", str(thread))
             thread.stop()
     
         for thread in self.socketThreads:
-            logger.debug("wait join %s", str(thread))
-            thread.join(60)
-            logger.debug("wait join ok")
+            logger.debug("cleanup_socket: wait join %s", str(thread))
+            try:
+                thread.join(1)
+                if thread.isAlive():
+                    logger.debug("cleanup_socket: wait join %s timeout",  thread.name) 
+                else:
+                    logger.debug("cleanup_socket: wait join %s ok",  thread.name)
+            except Exception as e:
+                logger.warn("cleanup_socket: wait join %s: %s", thread.name, str(e))
 
         
     def cleanup_threads(self):
@@ -571,16 +591,20 @@ class ThreadManager:
         logger.debug("ThreadManager, cleanup_threads")
         
         for thread in self.threads:
-            logger.debug("stop thread %s", str(thread))
+            logger.debug("cleanup_threads: stop thread %s", str(thread))
             thread.stop()
     
         for thread in self.threads:
-            logger.debug("wait join %s", thread)
+            logger.debug("cleanup_threads: wait join %s", thread)
             try:
-                thread.join(60)
+                thread.join(1)
+                if thread.isAlive():
+                    logger.debug("cleanup_threads: wait join %s timeout",  thread.name) 
+                else:
+                    logger.debug("cleanup_threads: wait join %s ok",  thread.name)
             except Exception as e:
-                logger.warn("wait join %s: %s", thread.name, str(e))
-            logger.debug("wait join ok")
+                logger.warn("cleanup_threads: wait join %s: %s", thread.name, str(e))
+            
 
 threadManager = ThreadManager()
 
@@ -604,7 +628,7 @@ class ScratchClient(threading.Thread):
     def __init__(self):   
         # import pdb; pdb.set_trace() 
         #global forceSimulation 
-        threading.Thread.__init__(self, name="ScratchClient")
+        threading.Thread.__init__(self, name="scratchClient")
         self._stop = threading.Event()
 
         self.myQueue = helper.abstractQueue.AbstractQueue()
@@ -613,7 +637,7 @@ class ScratchClient(threading.Thread):
         self.sender = ScratchSender()
         #self.commandResolver = CommandResolver()    
         self.gpioManager = None
-
+        self.managers = []   
         if nogui == False:
             self.gui = server.scratchClientServer.ServerThread( parent = self, remote = guiRemote )
             
@@ -628,18 +652,21 @@ class ScratchClient(threading.Thread):
         if errorManager.hasErrors() :
             logger.error("Errors: %s", str(errorManager.errors ))
             logger.error("There are errors in configuration file '{f:s}'".format(f=configFileName))
-            sys.exit(2)
-
+            self.shutdown()
+            return
+        
         self.config.check()
         
         if errorManager.hasErrors() :
             logger.error("Errors: %s", str(errorManager.errors ))
             logger.error("There are errors in configuration file '{f:s}'".format(f=configFileName))
-            sys.exit(2)
-
+            self.shutdown()
+            return
+        
         if validate:
             logger.warn("Validating, exit with no errors.")
-            sys.exit(0)
+            self.shutdown()
+            return
         # 
         if nogui == False:
             self.gui.start()
@@ -668,7 +695,7 @@ class ScratchClient(threading.Thread):
             if adapterMethods.hasMethod('setDMAManager'):
                 needDMA = True
             
-        self.managers = []    
+         
         
         if needGPIO:
             self.gpioManager = configuration.GPIOManager( lib=gpioLib )
@@ -691,15 +718,6 @@ class ScratchClient(threading.Thread):
         for m in self.managers:
             m.setActive(True)
         # -----------------        
-        if forceActive:
-            logger.info("forceActive, switch to active Mode, disabled")
-            pass
-        else:
-            #if forceSimulation:
-            #    for module in self.config.getAdapters():
-            #        module.setSimulation()
-            pass
-        # ------------------------------------------
         # Assign the managers for hardware resources to the adapters.
         # There are adapters needing more than one manager.
         #
@@ -757,14 +775,13 @@ class ScratchClient(threading.Thread):
         return self._stop.isSet()
         
     def run(self):
-        logger.debug("ScratchClient thread started")
+        logger.debug("%s thread started", self.getName() )
 
         while not(self.stopped()):
+            s = ''
             try:
                 s = self.myQueue.get(True, 0.1)
             except helper.abstractQueue.AbstractQueue.Empty:
-                if self.stopped():
-                    break
                 continue
             if s == 'disconnect':
                 #print("disconnect received")
@@ -772,7 +789,7 @@ class ScratchClient(threading.Thread):
             if s == 'connect':
                 #print("connect received")
                 self._connect()
-        logger.debug("ScratchClient thread terminated")
+        logger.debug("%s thread terminated", self.getName() )
         
     def event_disconnect(self):
         self.myQueue.put('disconnect')
@@ -808,6 +825,9 @@ class ScratchClient(threading.Thread):
                 logger.error("no socket")
                 return
             
+            if self.stopped():
+                return
+            
             with helper.logging.LoggingContext(logger, level=logging.DEBUG):
                 logger.info('Connected to Scratch !')
             
@@ -835,36 +855,37 @@ class ScratchClient(threading.Thread):
         scratch_sock = None
         # count is used to limit the number of log messages on console
         count = 0
+
         while not( self.stopped() ):
-        
             try:
                 if count == 0:
                     logger.info( 'Trying to connect to scratch.' )
+                
                 scratch_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                scratch_sock.settimeout(0.15)
                 scratch_sock.connect((host, int(port)))
                 break
+            
             except socket.error:
                 scratch_sock = None
                 if count == 0:
                     logger.warn( "There was an error connecting to Scratch!" )
                     # in german for the kids in school:
-                    logger.warn( "  Unterstützung für Netzwerksensoren einschalten!" )
+                    logger.warn( "  Unterstuetzung fuer Netzwerksensoren einschalten!" )
                     logger.warn( "  Activate remote sensor connections!" )
                     logger.info( "  No Mesh session at host: %s, port: %s" , host, port) 
+                
                 for _ in range(0,50):
                     if self.stopped():
                         break
                     time.sleep(0.1)
-    
+                
                 count += 1
                 count %= 40
         return scratch_sock
 
-    def sigHandler(self, signum, frame):
-        if logger.isEnabledFor(logging.WARN):
-            logger.warn ("received signal %s", str(signum))
+    def shutdown(self):
         # self.runIt = False
-        self.stop()
 
         for adapter in self.config.getAdapters():
             #
@@ -882,79 +903,16 @@ class ScratchClient(threading.Thread):
             
         threadManager.cleanup_socket()
         threadManager.cleanup_threads()
+        #
+        # the own thread is included in 'cleanup_threads
+        # self.stop()
 
         global runIt
         runIt = False
-
-#
-# Singleton things, use a PID-File
-#
-def _createPidFile(pidFileName, osPid ):
-    pfn = modulePathHandler.getScratchClientBaseRelativePath(pidFileName)
-    
-    pidfile = open(pfn, "w")
-    pidfile.write(str(osPid))
-    pidfile.close()
-    # make the file public, just in case it is generated by root, but next run of sw is user. 
-    try:
-        if sys.platform.startswith('linux'):
-            groupinfo = grp.getgrnam('users')
-            gid = groupinfo[2]
-            os.chown(pfn, -1, gid )
-    except Exception as e:
-        logger.error("could not open PID File for chown {file:s} {e:s}".format(file=pfn, e=str(e)))
-    try:
-        os.chmod(pfn, 0666 )
-    except Exception as e:
-        logger.error("could not open PID File for chmod {file:s} {e:s}".format(file=pfn, e=str(e)))
-        
-    pass
-    
-def _existPidFile(pidFileName ):
-    return os.path.exists( modulePathHandler.getScratchClientBaseRelativePath(pidFileName) )
-
-def _readPidFile(pidFileName ):
-    pidfile = open(modulePathHandler.getScratchClientBaseRelativePath(pidFileName),"r")
-    pidString = pidfile.read()
-    pidfile.close()
-    return pidString
-
-def forceSingleton():
-    
-    osPid = os.getpid()
-    if not _existPidFile(pidFileName) :
-        _createPidFile(pidFileName, osPid)
-        return
-
-    pidString = _readPidFile(pidFileName)
-    
-    #
-    # some strange format in file, ignore
-    #
-    if not re.match('[0-9]+', pidString):
-        _createPidFile((pidFileName), osPid)
-        return
-        
-
-    if pidString == str(osPid):
-        # something is real weird
-        logger.error('quit program, forceSingleton found condition: os.pid == content current pid file')
-        logger.error('try deleting pid file {name:s}'.format(name= pidFileName))
-        sys.exit(19)
-    else:
-        if len(os.popen('ps %s' % pidString).read().split('\n')) > 2:
-            logger.error(os.popen('ps %s' % pidString).read())
-            
-            logger.error('quit program, forceSingleton found running process, pid {pid:s}'.format(pid=pidString))
-            sys.exit(20)
-        else:
-            logger.warning('forceSingleton: the previous server must have crashed' )
-
-        _createPidFile((pidFileName), osPid)
-            
-def cleanSingleton():
-    if os.path.exists(modulePathHandler.getScratchClientBaseRelativePath(pidFileName)):
-        os.remove( modulePathHandler.getScratchClientBaseRelativePath(pidFileName))
+       
+    def sigHandler(self, signum, frame):
+        logger.warn ("received signal %s", str(signum))
+        self.shutdown()
 
 class ModulePathHandler:
     modulePath = None
@@ -1057,10 +1015,18 @@ if __name__ == '__main__':
                 for x in changes:
                     print(x)
                 sys.exit(1)
-            elif '-forceActive' == sys.argv[i]:
-                forceActive = True
+
             elif '-validate' == sys.argv[i]:
                 validate = True
+                
+            elif '-singletonIPC' == sys.argv[i]:
+                singletonFlag = 'IPC' 
+            elif '-singletonPID' == sys.argv[i]:
+                singletonFlag = 'PID' 
+            elif '-singletonNONE' == sys.argv[i]:
+                singletonFlag = 'NONE' 
+                
+                
             else:
                 print("Command line error, unknown switch", sys.argv[i])    
             i += 1
@@ -1078,7 +1044,7 @@ if __name__ == '__main__':
         lFile = 'logging/logging.conf'
     
     
-    print(modulePathHandler.getScratchClientBaseRelativePath(lFile))
+    # print(modulePathHandler.getScratchClientBaseRelativePath(lFile))
             
     logging.config.fileConfig( modulePathHandler.getScratchClientBaseRelativePath(lFile) )
     
@@ -1156,23 +1122,30 @@ if __name__ == '__main__':
         else:
             configFileName = cFile
     # ----------------------------------------------------------
-   
-    
-    forceSingleton()
+    singletonInstance = None
+    if singletonFlag == 'PID':
+        singletonInstance = singleton.singletonPID.SingletonPID( modulePathHandler, DEFAULT_PIDFILENAME )
+    if singletonFlag == 'IPC':
+        singletonInstance = singleton.singletonIPC.SingletonIPC( port=42003 )
+    if singletonFlag == 'NONE':
+        singletonInstance = singleton.singletonNONE.SingletonNONE( )
+        
+    singletonInstance.start()
     
     logger.debug("sys.path    = {p:s}".format(p=sys.path))
     # print('start scratch client')
     
     scratchClient = ScratchClient()
+    singletonInstance.registerShutdown( scratchClient)
     
     nWTR = 0
     while runIt:
         if nWTR % 20000 == 0:
-            logger.debug("still running")
+            logger.debug("scratchClient still running")
         time.sleep(0.1)
         nWTR += 1
-    time.sleep(0.1)
     
+    singletonInstance.stop ()
     # for debugging purpose, list out not yet terminated threads.
     # MainThread counts as 1, so list only if activeCount > 1
     # 
@@ -1184,9 +1157,8 @@ if __name__ == '__main__':
         print("")
         time.sleep(3)
         
-    cleanSingleton ()
+    
     print("scratchClient terminated")
-    logger.debug("main ended")
+    logger.debug("scratchClient terminated")
     
     quit()
-    

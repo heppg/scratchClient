@@ -256,7 +256,6 @@ class UNO_Adapter (adapter.adapters.Adapter):
             self.stateMachine.start()
         else:
             
-            self.stateMachine.disconnectEvent() 
             self.stateMachine.stop() 
             
             # wait till state == STOP, but max 0.5 sec
@@ -497,9 +496,6 @@ class UNO_Adapter (adapter.adapters.Adapter):
             return 'fail'
         return "success" 
     
-    def actionDisconnectEvent(self):
-        # self._queue_put_prio("disconnect")
-        pass
     
     def actionReportDisconnect(self):
         logger.warning("{n:s}: lost connection to arduino".format(n=self.name))
@@ -518,7 +514,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
         return "success"
      
     def _runReceive(self):
-        logger.debug("_runReceive %", "start")
+        logger.debug("_runReceive %s", "start")
         while not self._stopped:
             try:
                 line = self.ser.readline()
@@ -628,10 +624,10 @@ class UNO_Adapter (adapter.adapters.Adapter):
             else:
                 logger.info("undefined: " + line)
         
-        logger.debug("_runReceive %", "end")
+        logger.debug("_runReceive %s", "end")
 
     def _runSend(self):
-        logger.debug("_runSend %", "start")
+        logger.debug("_runSend %s", "start")
         self.state_arduinoConfigured = "undef"
         t_r = time.time()
         
@@ -723,7 +719,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
         except Exception as e:
             pass
                 
-        logger.debug("_runSend %", "end")
+        logger.debug("_runSend %s", "end")
 
     
     def actionStartThreads(self):
@@ -731,11 +727,11 @@ class UNO_Adapter (adapter.adapters.Adapter):
             fail """
         self._stopped = False
         self.threadReceive = threading.Thread(target=self._runReceive)
-        self.threadReceive.setName("receive")
+        self.threadReceive.setName("_runReceive")
         self.threadReceive.start()
     
         self.threadSend = threading.Thread(target=self._runSend)
-        self.threadSend.setName("send")
+        self.threadSend.setName("_runSend")
         self.threadSend.start()
     
         return "success" 
@@ -797,9 +793,6 @@ class UNO_Adapter (adapter.adapters.Adapter):
         def start(self):
             logger.error(self.name(), "start() not handled")
             return None
-        def disconnectEvent(self):
-            logger.error(self.name(), "disconnectEvent() not handled")
-            return None
         
         def stop(self):
             logger.error(self.name(),"stop() not handled")
@@ -809,6 +802,10 @@ class UNO_Adapter (adapter.adapters.Adapter):
             return None
         def success(self):
             logger.error(self.name(),"success() not handled")
+            return None
+                
+        def timeout(self):
+            logger.error(self.name(),"timeout() not handled")
             return None
                 
         def startTimer(self, t):
@@ -909,9 +906,6 @@ class UNO_Adapter (adapter.adapters.Adapter):
             self.parent.actionReportDisconnect()
             return UNO_Adapter.WAIT_START()
         
-        def disconnectEvent(self):
-            self.parent.actionDisconnectEvent()
-            return None
         
         def stop(self):
             return UNO_Adapter.STOP()
@@ -976,7 +970,6 @@ class UNO_Adapter (adapter.adapters.Adapter):
                 if s == 'start': self._handle( s, self.state.start())
                 elif s == 'stop': self._handle( s, self.state.stop())
                 elif s == 'timeout': self._handle( s, self.state.timeout())
-                elif s == 'disconnectEvent': self._handle( s, self.state.disconnectEvent())
                 elif s == 'success': self._handle( s, self.state.success())
                 elif s == 'fail': self._handle( s, self.state.fail())
                 elif s == 'serialError': self._handle( s, self.state.serialError())
@@ -988,7 +981,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
             
             self.stopQueueHandler = False
             self.thread1 = threading.Thread(target=self.run_stateQueueHandler)
-            self.thread1.setName("queue")
+            self.thread1.setName("run_stateQueueHandler")
             self.thread1.start()
             
         def _stop(self):
@@ -1003,8 +996,6 @@ class UNO_Adapter (adapter.adapters.Adapter):
         def start(self):
             self.addEvent("start")
             
-        def disconnectEvent(self):
-            self.addEvent("disconnectEvent")
             
         def stop(self):
             self.addEvent("stop")

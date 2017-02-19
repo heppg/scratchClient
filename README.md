@@ -13,7 +13,7 @@ tar xzf scratchClient.tar.gz
 chmod +r -R scratchClient/
 sudo apt-get update
 sudo apt-get install python-pip python-dev
-sudo pip install cherrypy routes mako ws4py spidev
+sudo pip install cherrypy==8.1.0 ws4py==0.3.5 mako==1.0.6 routes==2.4.1 spidev pyserial intelhex
 ```
 
 Specialized adapters may need more packages to install. See the docs for more information.

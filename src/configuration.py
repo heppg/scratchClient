@@ -254,9 +254,13 @@ class ConfigManager:
                            
                                                        
     def configureCommandResolver (self, scratchSender):
+        if self.configDelegate == None:
+            return
         self.configDelegate.configureCommandResolver(scratchSender)
 
     def getAdapters(self):
+        if self.configDelegate == None:
+            return []
         return self.configDelegate.getAdapters()
     
     def getDescription(self):
@@ -264,7 +268,9 @@ class ConfigManager:
     
     def check(self):
         """check for config errors"""
-        return self.configDelegate.check()
+        if self.configDelegate == None:
+            return
+        self.configDelegate.check()
     
     def registerRegisterGuiOnCommandResolver(self, gui, scratchSender):
         self.configDelegate.registerGuiOnCommandResolver(gui, scratchSender)
