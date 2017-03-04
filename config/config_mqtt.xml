@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="config.xsd" >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2017  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <description>
+        Publish / subscribe to a mqtt-Server.
+        The server must be started separately as a service.
+    </description>
+
+    <!-- =========================================================================== -->
+    
+    <adapter class='adapter.iotAdapter.MQTT_Adapter'  name='mqtt'>
+        <description>interface to a mqtt-server</description>
+        
+        <!--  
+           this adapter does implicit input_value and output_value-configuration based on the
+              content of mqtt-Tag.
+              mgtt/publish/@variable definitions are used as scratch variable names.
+              mgtt/subscribe/@variable definitions are used as scratch sensor names.
+        -->
+               
+        <mqtt>
+            <publish topic="scratch/sample/a_value" variable="a_value" />
+            <publish topic="scratch/sample/b_value" variable="b_value" />
+            <publish topic="scratch/sample/c_value" variable="c_value" />
+        
+            <subscribe topic="scratch/sample/d_value" variable="d_value" />
+        </mqtt>
+        
+        <parameter name="mqtt.server" value="192.168.2.160"  />
+        <parameter name="mqtt.port" value="1883"  />
+    </adapter>
+
+</config>

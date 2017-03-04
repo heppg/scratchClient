@@ -267,7 +267,7 @@ class Adapter (configuration.AdapterSetting):
                 
             if x['name'] == message['name']:
                 f = x['method']
-                f(message['value'])
+                f( message['value'] )
     
     def configureCommandResolver (self, commandResolver):
         for _input in self.inputs:

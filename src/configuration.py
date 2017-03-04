@@ -554,6 +554,11 @@ class ConfigManager_1_0:
         #
         moduleMethods = AdapterMethods(adapter)
         
+        adapter_input_values = []
+        adapter_inputs = []
+        adapter_output_values = []
+        adapter_outputs = []
+        
         if moduleMethods.hasMethod("setXMLConfig"):
             adapter.setXMLConfig(child)
             # there could be methods dynamically added, so rerun AdapterMethods
@@ -563,10 +568,6 @@ class ConfigManager_1_0:
             for x in  moduleMethods.moduleMethods:
                 print(x)
 
-        adapter_input_values = []
-        adapter_inputs = []
-        adapter_output_values = []
-        adapter_outputs = []
                 
         for tle in child:
             

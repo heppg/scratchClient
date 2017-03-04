@@ -27,7 +27,7 @@ import os
 import threading
 import json
 import twitter
-       
+import helper       
 
 from scratchClient import ModulePathHandler
 import adapter.adapters
@@ -276,7 +276,7 @@ class Twitter_Adapter(adapter.adapters.Adapter):
                     # the queue is only used to receive events
                     #  
                     timedText = self.queue.get(True, 0.1)
-                except Queue.Empty:
+                except helper.abstractQueue.AbstractQueue.Empty:
                     timedText = None
                     continue
                 

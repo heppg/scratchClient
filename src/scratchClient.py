@@ -40,6 +40,8 @@
 # changes:
 # 
 changes = [
+'2017-03-04 added mqtt-adapter.',    
+'2017-02-27 arduino.ino, added counter function, changes in config tool.',    
 '2017-02-18 arduino.ino, comment changes, additional ident reset command.',    
 '2017-02-17 bugfix: wrong config file did not cause program to terminate.',    
 '2017-02-14 singleton-ipc, added; added command line switch to select singleton logic',    

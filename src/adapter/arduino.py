@@ -58,7 +58,7 @@ debug_2_blink   = False
 #
 # show lines received/send from serial line
 #
-show = False
+show = True
 #
 # --------------------------------------------------------------------------------------
 
@@ -79,6 +79,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
     
     PWM = 'pwm'
     SERVO = 'servo'
+    COUNTER = 'counter'
     
     ANALOGIN = 'analog_in'
      
@@ -252,6 +253,9 @@ class UNO_Adapter (adapter.adapters.Adapter):
         adapter.adapters.Adapter.setActive(self, state)
 
         if state:
+            # clear 'old' values on new connections
+            self.lastInputValue = {}
+            
             self.stateMachine._start()
             self.stateMachine.start()
         else:
@@ -286,17 +290,17 @@ class UNO_Adapter (adapter.adapters.Adapter):
     io_options = { 
           'D0' :  { 'pos': 0,  'ifunc' : _setInput_IO_0, 'pfunc' : _setInput_PWM_0,'sfunc' : _setInput_SERVO_0, 'options': ['void']},
           'D1' :  { 'pos': 1,  'ifunc' : _setInput_IO_1, 'pfunc' : _setInput_PWM_1,'sfunc' : _setInput_SERVO_1, 'options': ['void']},
-          'D2' :  { 'pos': 2,  'ifunc' : _setInput_IO_2, 'pfunc' : _setInput_PWM_2,'sfunc' : _setInput_SERVO_2, 'options': ['void', 'in', 'out', 'servo']},
-          'D3' :  { 'pos': 3,  'ifunc' : _setInput_IO_3, 'pfunc' : _setInput_PWM_3,'sfunc' : _setInput_SERVO_3, 'options': ['void', 'in', 'out', 'pwm', 'servo']},
-          'D4' :  { 'pos': 4,  'ifunc' : _setInput_IO_4, 'pfunc' : _setInput_PWM_4,'sfunc' : _setInput_SERVO_4, 'options': ['void', 'in', 'out', 'servo']},
-          'D5' :  { 'pos': 5,  'ifunc' : _setInput_IO_5, 'pfunc' : _setInput_PWM_5,'sfunc' : _setInput_SERVO_5, 'options': ['void', 'in', 'out', 'pwm', 'servo']},
-          'D6' :  { 'pos': 6,  'ifunc' : _setInput_IO_6, 'pfunc' : _setInput_PWM_6,'sfunc' : _setInput_SERVO_6, 'options': ['void', 'in', 'out', 'pwm', 'servo']},
-          'D7' :  { 'pos': 7,  'ifunc' : _setInput_IO_7, 'pfunc' : _setInput_PWM_7,'sfunc' : _setInput_SERVO_7, 'options': ['void', 'in', 'out', 'servo']},
-          'D8' :  { 'pos': 8,  'ifunc' : _setInput_IO_8, 'pfunc' : _setInput_PWM_8,'sfunc' : _setInput_SERVO_8, 'options': ['void', 'in', 'out', 'servo']},
-          'D9' :  { 'pos': 9,  'ifunc' : _setInput_IO_9, 'pfunc' : _setInput_PWM_9, 'sfunc' : _setInput_SERVO_9,'options': ['void', 'in', 'out', 'pwm', 'servo']},
-          'D10' : { 'pos': 10, 'ifunc' : _setInput_IO_10,'pfunc' : _setInput_PWM_10,'sfunc' : _setInput_SERVO_10,'options': ['void', 'in', 'out', 'pwm', 'servo']},
-          'D11' : { 'pos': 11, 'ifunc' : _setInput_IO_11,'pfunc' : _setInput_PWM_11,'sfunc' : _setInput_SERVO_11,'options': ['void', 'in', 'out', 'pwm', 'servo']},
-          'D12' : { 'pos': 12, 'ifunc' : _setInput_IO_12,'pfunc' : _setInput_PWM_12,'sfunc' : _setInput_SERVO_12,'options': ['void', 'in', 'out', 'servo']},
+          'D2' :  { 'pos': 2,  'ifunc' : _setInput_IO_2, 'pfunc' : _setInput_PWM_2,'sfunc' : _setInput_SERVO_2, 'options': ['void', 'in', 'out',        'servo', 'counter']},
+          'D3' :  { 'pos': 3,  'ifunc' : _setInput_IO_3, 'pfunc' : _setInput_PWM_3,'sfunc' : _setInput_SERVO_3, 'options': ['void', 'in', 'out', 'pwm', 'servo', 'counter']},
+          'D4' :  { 'pos': 4,  'ifunc' : _setInput_IO_4, 'pfunc' : _setInput_PWM_4,'sfunc' : _setInput_SERVO_4, 'options': ['void', 'in', 'out',        'servo', 'counter']},
+          'D5' :  { 'pos': 5,  'ifunc' : _setInput_IO_5, 'pfunc' : _setInput_PWM_5,'sfunc' : _setInput_SERVO_5, 'options': ['void', 'in', 'out', 'pwm', 'servo', 'counter']},
+          'D6' :  { 'pos': 6,  'ifunc' : _setInput_IO_6, 'pfunc' : _setInput_PWM_6,'sfunc' : _setInput_SERVO_6, 'options': ['void', 'in', 'out', 'pwm', 'servo', 'counter']},
+          'D7' :  { 'pos': 7,  'ifunc' : _setInput_IO_7, 'pfunc' : _setInput_PWM_7,'sfunc' : _setInput_SERVO_7, 'options': ['void', 'in', 'out',        'servo', 'counter']},
+          'D8' :  { 'pos': 8,  'ifunc' : _setInput_IO_8, 'pfunc' : _setInput_PWM_8,'sfunc' : _setInput_SERVO_8, 'options': ['void', 'in', 'out',        'servo', 'counter']},
+          'D9' :  { 'pos': 9,  'ifunc' : _setInput_IO_9, 'pfunc' : _setInput_PWM_9, 'sfunc' : _setInput_SERVO_9,'options': ['void', 'in', 'out', 'pwm', 'servo', 'counter']},
+          'D10' : { 'pos': 10, 'ifunc' : _setInput_IO_10,'pfunc' : _setInput_PWM_10,'sfunc' : _setInput_SERVO_10,'options': ['void', 'in', 'out', 'pwm', 'servo', 'counter']},
+          'D11' : { 'pos': 11, 'ifunc' : _setInput_IO_11,'pfunc' : _setInput_PWM_11,'sfunc' : _setInput_SERVO_11,'options': ['void', 'in', 'out', 'pwm', 'servo', 'counter']},
+          'D12' : { 'pos': 12, 'ifunc' : _setInput_IO_12,'pfunc' : _setInput_PWM_12,'sfunc' : _setInput_SERVO_12,'options': ['void', 'in', 'out',        'servo', 'counter']},
           # pin13, LED, is used for status display on uno, so do nut allow for IO
           'D13' : { 'pos': 13, 'ifunc' : _setInput_IO_13,'pfunc' : _setInput_PWM_13,'sfunc' : _setInput_SERVO_13,'options': ['void']},
           }
@@ -327,6 +331,11 @@ class UNO_Adapter (adapter.adapters.Adapter):
         
         self._digital_inputs = 0
         self._digital_input_pullups = 0
+        
+        self._digital_counter = 0
+        self._digital_counter_pullups = 0
+        
+        
         self._digital_outputs = 0
         self._digital_pwms = 0
         self._digital_servos = 0
@@ -370,6 +379,25 @@ class UNO_Adapter (adapter.adapters.Adapter):
                             print("register ", "output" + _id )
                         setattr(self, "output" + _id, self._sendValue ) 
                         pass
+                    # ---------------
+                    elif _dir == self.COUNTER and _pullup ==  self.ON:
+                        self._digital_counter_pullups |= ( 1 << self.io_options[_id]['pos'])
+                        if debug_0_debug:
+                            print("register ", "output" + _id )
+                        
+                        # sending values towards scratch is done by name of the method. So no need to prepare additional 
+                        # function prototypes as in the various output functions.
+                        # The prototypes are only needed to allow for matching the functions with configuration.
+                        #
+                        setattr(self, "counter" + _id, self._sendValue ) 
+                        pass
+                    elif _dir == self.COUNTER:
+                        self._digital_counter |= ( 1 << self.io_options[_id]['pos'])
+                        if debug_0_debug:
+                            print("register ", "output" + _id )
+                        setattr(self, "output" + _id, self._sendValue ) 
+                        pass
+                    # ------------------------
                     elif _dir == self.OUT:
                         self._digital_outputs |= ( 1 << self.io_options[_id]['pos'])
                         method = MethodType(self.io_options[_id]['ifunc'], self, type(self))
@@ -574,6 +602,12 @@ class UNO_Adapter (adapter.adapters.Adapter):
                 if self._digital_input_pullups != 0:  
                     self._queue_put_prio("cdinp:{data:04x}".format(data=self._digital_input_pullups))
                 
+                if self._digital_counter != 0:  
+                    self._queue_put_prio("cdcnt:{data:04x}".format(data=self._digital_counter))
+                
+                if self._digital_counter_pullups != 0:  
+                    self._queue_put_prio("cdcntp:{data:04x}".format(data=self._digital_counter_pullups))
+                
                 if self._digital_outputs != 0:
                     self._queue_put_prio("cdout:{data:04x}".format(data=self._digital_outputs))
                 
@@ -606,6 +640,17 @@ class UNO_Adapter (adapter.adapters.Adapter):
                 x = line[1:].split(',')
                 port  = x[0]
                 value = x[1]
+                # print("port", port, "value", value)
+                self.sendValueByName( 'outputD' + port,  value)
+            #
+            # counter values are hex
+            #
+            elif line.startswith( 'c' ):
+                x = line[1:].split(',')
+                port  = x[0]
+                value = x[1]
+                # counters are transmitted as HEX values
+                value = int(value, 16)
                 # print("port", port, "value", value)
                 self.sendValueByName( 'outputD' + port,  value)
             #
