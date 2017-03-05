@@ -40,6 +40,7 @@
 # changes:
 # 
 changes = [
+'2017-03-05 extensions in config file are marked with <extension>. Old files work with new code. Affects ADC_MCP3202_10_Zone_Input, UNO_Adapter, MQTT_Adapter, MCP23S17_Adapter, CommunicationAdapter, WebsocketXY_Adapter.',    
 '2017-03-04 added mqtt-adapter.',    
 '2017-02-27 arduino.ino, added counter function, changes in config tool.',    
 '2017-02-18 arduino.ino, comment changes, additional ident reset command.',    
@@ -665,6 +666,9 @@ class ScratchClient(threading.Thread):
             self.shutdown()
             return
         
+        if errorManager.hasWarnings() :
+            logger.warn("Warning: %s", str(errorManager.warnings ))
+
         if validate:
             logger.warn("Validating, exit with no errors.")
             self.shutdown()

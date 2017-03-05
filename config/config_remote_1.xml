@@ -30,15 +30,17 @@
 		<description>Remote communication adapter. </description>
 
         <!--  these commands are received from scratch and forwarded to a remote attached scratchClient -->
-        <remote type='forward'>
-        
-            <broadcast name='command_B'/>  
-        </remote>
-
-        <!--  these commands are received from a remote attached scratchClient and sent to local scratch -->
-        <remote type='receive'>
-            <broadcast name='command_A'/>
-        </remote>
+        <extension>
+	        <remote type='forward'>
+	        
+	            <broadcast name='command_B'/>  
+	        </remote>
+	
+	        <!--  these commands are received from a remote attached scratchClient and sent to local scratch -->
+	        <remote type='receive'>
+	            <broadcast name='command_A'/>
+	        </remote>
+        </extension>
         
         <parameter name="group" value="groupA"  />
         <parameter name="server" value="192.168.2.108" />

@@ -19,10 +19,17 @@
 #
 
 errors = []
+warnings = []
 
 def append( err):
     errors.append(err)
+    
+def appendWarning( err):
+    warnings.append(err)
 
 def hasErrors():
     return len(errors)
+
+def hasWarnings():
+    return len(warnings)
 

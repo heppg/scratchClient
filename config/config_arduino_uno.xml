@@ -80,52 +80,54 @@
 		<parameter name='serial.baud' value='115200' />
 
 		<!-- ==================================================== -->
-		<!-- this is the setup for an UNO arduino -->
-
-		<!-- digital io lines -->
-		<!-- @dir = void, pwm, in, out, servo -->
-		<!-- @pullup= on, use this on inputs.  -->
-
-		<!-- do not use D0, D1 (serial lines) -->
-
-		<io id='D0' dir='void' />
-		<io id='D1' dir='void' />
-
-		<!-- 3,5,6,10,11 may be pwm -->
-		<io id='D2' dir='out' />
-		<io id='D3' dir='in' pullup='on' />
-
-		<io id='D4' dir='out' />
-		<io id='D5' dir='pwm' />
-
-		<io id='D6' dir='servo' />
-		<io id='D7' dir='out' />
-
-		<io id='D8' dir='in' pullup='on' />
-		<io id='D9' dir='in' pullup='on' />
-		<io id='D10' dir='in' pullup='on' />
-
-		<io id='D11' dir='void' />
-
-		<io id='D12' dir='in' pullup='on' />
-
-		<!-- do not use D13 (onboard LED) -->
-
-		<io id='D13' dir='void' />
-
-		<!-- ==================================================== -->
-		<!-- analog io lines -->
-		<!-- @dir = void line not used -->
-		<!-- @dir = in, out line used as digital line, also in combination with pullup -->
-		<!-- @dir = analog_in line used as analog input line -->
-
-		<analog id='A0' dir='analog_in' />
-		<analog id='A1' dir='void' />
-		<analog id='A2' dir='void' />
-		<analog id='A3' dir='void' />
-		<analog id='A4' dir='void' />
-		<analog id='A5' dir='void' />
-
+		<extension>
+			<!-- this is the setup for an UNO arduino -->
+	
+			<!-- digital io lines -->
+			<!-- @dir = void, pwm, in, out, servo -->
+			<!-- @pullup= on, use this on inputs.  -->
+	
+			<!-- do not use D0, D1 (serial lines) -->
+	
+			<io id='D0' dir='void' />
+			<io id='D1' dir='void' />
+	
+			<!-- 3,5,6,10,11 may be pwm -->
+			<io id='D2' dir='out' />
+			<io id='D3' dir='in' pullup='on' />
+	
+			<io id='D4' dir='out' />
+			<io id='D5' dir='pwm' />
+	
+			<io id='D6' dir='servo' />
+			<io id='D7' dir='out' />
+	
+			<io id='D8' dir='in' pullup='on' />
+			<io id='D9' dir='in' pullup='on' />
+			<io id='D10' dir='in' pullup='on' />
+	
+			<io id='D11' dir='void' />
+	
+			<io id='D12' dir='in' pullup='on' />
+	
+			<!-- do not use D13 (onboard LED) -->
+	
+			<io id='D13' dir='void' />
+	        
+			<!-- ==================================================== -->
+			<!-- analog io lines -->
+			<!-- @dir = void line not used -->
+			<!-- @dir = in, out line used as digital line, also in combination with pullup -->
+			<!-- @dir = analog_in line used as analog input line -->
+	
+			<analog id='A0' dir='analog_in' />
+			<analog id='A1' dir='void' />
+			<analog id='A2' dir='void' />
+			<analog id='A3' dir='void' />
+			<analog id='A4' dir='void' />
+			<analog id='A5' dir='void' />
+			
+        </extension>
 	</adapter>
 
 </config>

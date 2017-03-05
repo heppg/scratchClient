@@ -57,12 +57,19 @@
 		<xs:attribute name="comment" type="xs:string"></xs:attribute>
 	</xs:complexType>
 
-	<xs:complexType name="webserver_type">
-		<xs:sequence>
-			<xs:element name="route" type="route_type"></xs:element>
-			<xs:element name="html" type="html_type" maxOccurs="unbounded" minOccurs="0"></xs:element>
-		</xs:sequence>
-	</xs:complexType>
+    <xs:complexType name="webserver_type">
+        <xs:sequence>
+            <xs:element name="route" type="route_type"></xs:element>
+            <xs:element name="html" type="html_type" maxOccurs="unbounded" minOccurs="0"></xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    
+    <!--  extensions are local and not structured by schema -->
+    <xs:complexType name="extension_type">
+        <xs:sequence>
+            <xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
 
 	<xs:complexType name="adapter_MCP23S17_type">
 		<xs:complexContent>
@@ -80,6 +87,7 @@
 		<xs:sequence>
 			<xs:element name="description" type="xs:string" maxOccurs="1" minOccurs="0" />
 			<xs:choice maxOccurs="unbounded" minOccurs="0">
+			
 				<xs:element name="gpio" type="gpio_type" maxOccurs="unbounded" minOccurs="0">
 				</xs:element>
 				<xs:element name="input" type="input_type" maxOccurs="unbounded" minOccurs="0">
@@ -94,6 +102,10 @@
 				</xs:element>
 				<xs:element name="webserver" type="webserver_type" maxOccurs="1" minOccurs="0">
 				</xs:element>
+				
+				<!--  allow for extensions -->
+				<xs:element name="extension" type="extension_type" maxOccurs="1" minOccurs="0">
+                </xs:element>
 			</xs:choice>
 		</xs:sequence>
 

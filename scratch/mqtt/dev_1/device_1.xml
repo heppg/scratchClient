@@ -38,16 +38,16 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
                
         <extension>
         <mqtt>
-            <publish topic="scratch/sample/a_value" variable="a_value" />
-            <publish topic="scratch/sample/b_value" variable="b_value" />
-            <publish topic="scratch/sample/c_value" variable="c_value" />
-        
-            <subscribe topic="scratch/sample/d_value" variable="d_value" />
+            <subscribe topic="scratch/sample/button" variable="button" />
+
         </mqtt>
         </extension>
         
         <parameter name="mqtt.server" value="192.168.2.160"  />
         <parameter name="mqtt.port" value="1883"  />
     </adapter>
+    
+    <!-- =========================================================================== -->
+     
 
 </config>

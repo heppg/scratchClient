@@ -38,16 +38,33 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
                
         <extension>
         <mqtt>
-            <publish topic="scratch/sample/a_value" variable="a_value" />
-            <publish topic="scratch/sample/b_value" variable="b_value" />
-            <publish topic="scratch/sample/c_value" variable="c_value" />
-        
-            <subscribe topic="scratch/sample/d_value" variable="d_value" />
+            <publish topic="scratch/sample/button" variable="button" />
+
         </mqtt>
         </extension>
         
         <parameter name="mqtt.server" value="192.168.2.160"  />
         <parameter name="mqtt.port" value="1883"  />
+    </adapter>
+    
+    <!-- =========================================================================== -->
+     
+    <adapter class='adapter.gpio.GpioEventInput' name='button_s0'>
+        <gpio port='GPIO17'>
+            <default dir='IN' pull='PUD_UP'  />
+            <active dir='IN' pull='PUD_UP'/>
+        </gpio>
+        
+        <output name='button_pressed'>
+            <broadcast name='s0_high'/>
+        </output>
+        <output name='button_released'>
+            <broadcast name='s0_low'/>
+        </output>
+        
+        <parameter name='poll.interval' value='0.05' />
+        <parameter name='value.inverse' value='true' />
+
     </adapter>
 
 </config>

@@ -51,6 +51,12 @@ class ADC_MCP3202_10_Zone_Input (adapter.adapters.SPIAdapter):
         # read configuration from xml
         #
         loggingContext = "adapter '[{a:s}]'".format(a=self.name ) 
+        
+        for tle in child:
+            if 'extension' == tle.tag:
+                child= tle
+                break
+
         for tle in child:
             if 'zone' == tle.tag:
                 _from = None

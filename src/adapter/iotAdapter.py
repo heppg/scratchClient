@@ -28,7 +28,7 @@ import adapter
 
 import paho.mqtt.client as mqtt
 
-debug = True
+debug = False
 
 # --------------------------------------------------------------------------------------
 
@@ -101,34 +101,36 @@ class MQTT_Adapter (adapter.adapters.Adapter):
         loggingContext = "adapter '[{a:s}]'".format(a=self.name ) 
         
         foundConfig = False
-        for tle in child:
-            if 'mqtt' == tle.tag:
-                if foundConfig:
-                    errorManager.append("{lc:s}: more than one 'mqtt'-config for adapter.".format( lc=loggingContext ))   
-                foundConfig = True
-                for ps in tle:
-                    if 'publish' == ps.tag:
-                        if 'topic' in  ps.attrib:
-                            _topic = ps.attrib['topic']
-                        else:
-                            errorManager.append("{lc:s}: no 'topic'-attribute in <publish>".format( lc=loggingContext ))    
-                        if 'variable' in  ps.attrib:
-                            _variable = ps.attrib['variable']
-                        else:
-                            errorManager.append("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
-                        self.publishConfig.append( ( _topic, _variable))   
-                        
-                    if 'subscribe' == ps.tag:
-                        if 'topic' in  ps.attrib:
-                            _topic = ps.attrib['topic']
-                        else:
-                            errorManager.append("{lc:s}: no 'topic'-attribute in <publish>".format( lc=loggingContext ))    
-                        if 'variable' in  ps.attrib:
-                            _variable = ps.attrib['variable']
-                        else:
-                            errorManager.append("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
-                        self.subscribeConfig.append( ( _topic, _variable) )   
-        
+        for _extension in child:
+            if 'extension' == _extension.tag:
+                for _mqtt in _extension:
+                    if 'mqtt' == _mqtt.tag:
+                        if foundConfig:
+                            errorManager.append("{lc:s}: more than one 'mqtt'-config for adapter.".format( lc=loggingContext ))   
+                        foundConfig = True
+                        for ps in _mqtt:
+                            if 'publish' == ps.tag:
+                                if 'topic' in  ps.attrib:
+                                    _topic = ps.attrib['topic']
+                                else:
+                                    errorManager.append("{lc:s}: no 'topic'-attribute in <publish>".format( lc=loggingContext ))    
+                                if 'variable' in  ps.attrib:
+                                    _variable = ps.attrib['variable']
+                                else:
+                                    errorManager.append("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
+                                self.publishConfig.append( ( _topic, _variable))   
+                                
+                            if 'subscribe' == ps.tag:
+                                if 'topic' in  ps.attrib:
+                                    _topic = ps.attrib['topic']
+                                else:
+                                    errorManager.append("{lc:s}: no 'topic'-attribute in <publish>".format( lc=loggingContext ))    
+                                if 'variable' in  ps.attrib:
+                                    _variable = ps.attrib['variable']
+                                else:
+                                    errorManager.append("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
+                                self.subscribeConfig.append( ( _topic, _variable) )   
+            
         if not foundConfig:
             errorManager.append("{lc:s}: no 'mqtt'-config for adapter.".format( lc=loggingContext ))             
         #
@@ -190,16 +192,28 @@ class MQTT_Adapter (adapter.adapters.Adapter):
         self.client = mqtt.Client()
         self.client.on_message = self.on_message
 
-        self.client.connect( _host, _port, 30)
-
-        subscribers = []
-        for p in self.subscribeConfig:
-            _topic = p[0]
-            subscribers.append( ( _topic, 2 ) )
-        if debug:
-            print("subscribe to ", subscribers)    
-        self.client.subscribe( subscribers )
+        START = 0
+        CONNECTED = 1
+        state = START
         
-        self.client.loop_forever()
+        while not self.stopped():
+            if state == START:  
+                try:
+                    self.client.connect( _host, _port, 30)
+                    state = CONNECTED
+                except Exception as e:
+                    logger.error("{name:s}: could not connect to server {server:s}:{port:d}".format(name=self.name, server=_host, port=_port))
+                    self.delay(10)
+                    
+            elif state == CONNECTED:            
+                subscribers = []
+                for p in self.subscribeConfig:
+                    _topic = p[0]
+                    subscribers.append( ( _topic, 2 ) )
+                if debug:
+                    print("subscribe to ", subscribers)    
+                self.client.subscribe( subscribers )
+                
+                self.client.loop_forever()
                 
                 

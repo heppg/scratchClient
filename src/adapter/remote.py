@@ -149,6 +149,13 @@ class CommunicationAdapter (adapter.adapters.Adapter):
         
         
         loggingContext = "adapter '[{a:s}]'".format(a=self.name ) 
+
+        # look for extension tag (new from 2017)
+        for tle in child:
+            if 'extension' == tle.tag:
+                child= tle
+                break
+        
         for tle in child:
             if 'remote' == tle.tag:
                 if 'type' in  tle.attrib:

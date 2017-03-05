@@ -172,6 +172,13 @@ class MCP23S17_Adapter (adapter.adapters.SPIAdapter):
         # read configuration from xml
         #
         loggingContext = "adapter '[{a:s}]'".format(a=self.name ) 
+        
+        # look for extension tag (new from 2017)
+        for tle in child:
+            if 'extension' == tle.tag:
+                child= tle
+                break
+        
         for tle in child:
             if 'io' == tle.tag:
                 if 'id' in  tle.attrib:

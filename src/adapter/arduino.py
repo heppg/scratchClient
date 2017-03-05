@@ -343,6 +343,11 @@ class UNO_Adapter (adapter.adapters.Adapter):
         # TODO no checks for multiple usage of ID so far
         #  
         for tle in child:
+            if 'extension' == tle.tag:
+                child= tle
+                break
+
+        for tle in child:
             if 'io' == tle.tag:
                 if not 'id' in  tle.attrib:
                     errorManager.append("{lc:s}: id missing arduino_uno:io".format( lc=loggingContext ))

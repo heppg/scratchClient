@@ -25,6 +25,9 @@ import sys
 import errorManager
 import publishSubscribe
 
+import logging
+logger = logging.getLogger(__name__)
+
 debug = False
 
     
@@ -560,6 +563,20 @@ class ConfigManager_1_0:
         adapter_outputs = []
         
         if moduleMethods.hasMethod("setXMLConfig"):
+            #
+            # the setXMLConfig-method receives the complete adapter xml.
+            # specific extensions should be kept inside an <extension>-element
+            # this is not done for older adapters before 2017 
+            # 
+            foundExtension = False
+            for _tle in child:
+                if 'extension' == _tle.tag:
+                    foundExtension = True
+                    break
+
+            if not foundExtension:
+                errorManager.appendWarning("{lc:s} Adapter extension should be encapsulated in <extension>-tag".format(lc=loggingContext))
+                
             adapter.setXMLConfig(child)
             # there could be methods dynamically added, so rerun AdapterMethods
             moduleMethods = AdapterMethods(adapter)

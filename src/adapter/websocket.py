@@ -83,6 +83,12 @@ class WebsocketXY_Adapter(adapter.adapters.Adapter):
             logger.error("No gui enabled . Do not configure gui")
             return
         
+        # look for extension tag (new from 2017)
+        for tle in child:
+            if 'extension' == tle.tag:
+                child= tle
+                break
+        
         for tle in child:
             if 'webserver' == tle.tag:
                 for tle2 in tle:

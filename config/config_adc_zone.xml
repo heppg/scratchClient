@@ -39,10 +39,11 @@ xsi:schemaLocation="conf conf.xsd">
         <parameter name='spi.device' value='0' />
         <parameter name='adc.channel' value='0' />
         
+        <extension>
         <conf:zone from='0' to='99' value='left'/>
         <conf:zone from='100' to='923' value='middle'/>
         <conf:zone from='924' to='1023' value='right'/>
-        
+        </extension>
     </adapter>
 
 </config>

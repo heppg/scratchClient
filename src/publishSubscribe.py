@@ -30,8 +30,9 @@ class Pub:
      
     @staticmethod
     def report():
-        for t in Pub.topics:
-            print("pubsub report ", t)
+        if debug:
+            for t in Pub.topics:
+                print("pubsub report ", t)
                 
     @staticmethod
     def subscribe(topic, receiver):
