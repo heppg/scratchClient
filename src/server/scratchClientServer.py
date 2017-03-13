@@ -109,7 +109,7 @@ class IDManager():
         for sic2d in  self.scratch_input_command_2_display:
             sn = sic2d['name']
             ln = sic2d['id']
-            if res.has_key( sn):
+            if sn in res:
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
@@ -121,7 +121,7 @@ class IDManager():
         for sic2d in  self.scratch_input_value_2_display:
             sn = sic2d['name']
             ln = sic2d['id']
-            if res.has_key( sn):
+            if sn in res:
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
@@ -133,7 +133,7 @@ class IDManager():
         for sic2d in  self.scratch_output_command_2_display:
             sn = sic2d['name']
             ln = sic2d['id']
-            if res.has_key( sn):
+            if sn in res:
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
@@ -145,7 +145,7 @@ class IDManager():
         for sic2d in  self.scratch_output_value_2_display:
             sn = sic2d['name']
             ln = sic2d['id']
-            if res.has_key( sn):
+            if sn in res:
                 res[sn].append( ln )
             else:
                 res[sn] = [ ln ]
@@ -1080,7 +1080,7 @@ class AdapterAnimationWebSocket(WebSocket):
             try:
                 self.send ( json.dumps(message), False )
                 if debug:
-                    print "inputValue " + json.dumps(message)
+                    print ("inputValue " + json.dumps(message))
             except Exception:
                 pass
         
@@ -1090,7 +1090,7 @@ class AdapterAnimationWebSocket(WebSocket):
             try:
                 self.send ( json.dumps(message), False )
                 if debug:
-                    print "inputCommand " + json.dumps(message)
+                    print ("inputCommand " + json.dumps(message))
             except Exception:
                 pass
                 
@@ -1100,7 +1100,7 @@ class AdapterAnimationWebSocket(WebSocket):
             try:
                 self.send ( json.dumps(message), False )
                 if debug:
-                    print "outputValue " + json.dumps(message)
+                    print ("outputValue " + json.dumps(message))
             except Exception:
                 pass
             
@@ -1110,7 +1110,7 @@ class AdapterAnimationWebSocket(WebSocket):
             try:
                 self.send ( json.dumps(message), False )
                 if debug:
-                    print "outputCommand " + json.dumps(message)
+                    print ("outputCommand " + json.dumps(message))
             except Exception:
                 pass
                 
@@ -1156,14 +1156,14 @@ class ServerThread(threading.Thread):
     remote = None
     config = None
     
-    _stop = None
+    _stopEvent = None
     _running = None
     
     def __init__(self, parent = None, remote = False, config = None):
         # print("next: ServerThread, init")
         threading.Thread.__init__(self, name="GUIServerThread")
         
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
         self._running = threading.Event()
         
         self.config = config
@@ -1197,7 +1197,7 @@ class ServerThread(threading.Thread):
         """Start adapter Thread"""
         # import pdb; pdb.set_trace() 
 
-        self._stop.clear()
+        self._stopEvent.clear()
         self._running.clear()
         
         threading.Thread.start(self)
@@ -1210,12 +1210,12 @@ class ServerThread(threading.Thread):
 
     def stop(self):
         logger.debug("ServerThread, stop cherryPy")
-        self._stop.set()
+        self._stopEvent.set()
         #eventDistributor.stop()
         cherrypy.engine.exit()
 
     def stopped(self):
-        return self._stop.isSet()
+        return self._stopEvent.isSet()
 
     def run(self):
         if debug:

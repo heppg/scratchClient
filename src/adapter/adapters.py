@@ -71,7 +71,7 @@ class Adapter (configuration.AdapterSetting):
         # self.state = self.STATE_NORMAL
         self.active = False
         # threading.Thread.__init__(self)
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
         
         self.parameters = {}
         
@@ -160,12 +160,12 @@ class Adapter (configuration.AdapterSetting):
             print("Start adapter Thread")
         self.thread = threading.Thread(target=self.run)
         self.thread.setName(self.name)
-        self._stop.clear()
+        self._stopEvent.clear()
         self.thread.start()
         
     def stop(self):
         """stop adapter thread. It is the thread's responsibility to timely shut down"""
-        self._stop.set()
+        self._stopEvent.set()
         if self.thread != None:
             self.thread.join(1)
             if self.thread.isAlive():
@@ -173,7 +173,7 @@ class Adapter (configuration.AdapterSetting):
 
     def stopped(self):
         """helper method for the thread's run method to find out whether a stop is pending"""
-        return self._stop.isSet()
+        return self._stopEvent.isSet()
 
     def run(self):
         """default, empty implementation für a run method"""

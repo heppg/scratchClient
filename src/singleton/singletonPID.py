@@ -19,6 +19,8 @@
 import os
 import re
 import sys
+import stat
+
 if sys.platform.startswith('linux'):
     import grp
     
@@ -53,7 +55,7 @@ class SingletonPID():
         except Exception as e:
             logger.error("could not open PID File for chown {file:s} {e:s}".format(file=pfn, e=str(e)))
         try:
-            os.chmod(pfn, 0666 )
+            os.chmod(pfn,  stat.S_IWUSR | stat.S_IRUSR | stat.S_IWGRP | stat.S_IRGRP  | stat.S_IWOTH | stat.S_IROTH)
         except Exception as e:
             logger.error("could not open PID File for chmod {file:s} {e:s}".format(file=pfn, e=str(e)))
             

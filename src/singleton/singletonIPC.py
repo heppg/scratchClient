@@ -1,7 +1,14 @@
 
 import threading
 import socket
-import SocketServer
+import sys
+
+if sys.version_info.major == 2:
+    from  SocketServer import TCPServer, BaseRequestHandler 
+if sys.version_info.major == 3:
+    from socketserver import TCPServer, BaseRequestHandler 
+
+
 import helper.abstractQueue
 import time
 import singleton.SingletonIPCFSM
@@ -11,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 debug = False
 
-class SingletonSocketClient(SocketServer.TCPServer):
+class SingletonSocketClient(TCPServer):
     
     def __init__(self, server_address, parent):
         self.singleton = parent
@@ -45,7 +52,7 @@ class SingletonSocketClient(SocketServer.TCPServer):
         if debug:
             print("_send complete")
 
-class SingletonTCPHandler(SocketServer.BaseRequestHandler):
+class SingletonTCPHandler(BaseRequestHandler):
     """
     The request handler class for our server.
 
@@ -61,23 +68,23 @@ class SingletonTCPHandler(SocketServer.BaseRequestHandler):
         # self.request is the TCP socket connected to the client
         self.data = self.request.recv(1024).strip()
         if debug:
-            print "{} wrote:".format(self.client_address[0])
+            print ("{} wrote:".format(self.client_address[0]))
         
         if self.data == 'time':
             self.request.sendall( "{t:20.6f}\n".format( t=self.server.singleton.startTime) )    
         else:
             queue = self.server.getQueue()
             if debug:
-                print self.data
+                print (self.data)
             queue.put(self.data)
             # just send back the same data, but upper-case 
             self.request.sendall(self.data.upper())
 
-class SingletonSocketServer(SocketServer.TCPServer):
+class SingletonSocketServer(TCPServer):
     
     def __init__(self, server_address, RequestHandlerClass, parent, bind_and_activate=True):
         self.singleton = parent
-        SocketServer.TCPServer.__init__(self, server_address, RequestHandlerClass, False)
+        TCPServer.__init__(self, server_address, RequestHandlerClass, False)
         self.allow_reuse_address = True
         try:
             self.server_bind()
@@ -103,7 +110,7 @@ class SingletonIPC:
         self.port = port
         self.server = None
         
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
         self.name="Singleton"
         self.queue = helper.abstractQueue.AbstractQueue()
         self._fsm = singleton.SingletonIPCFSM.SingletonIPC_sm(self)
@@ -116,7 +123,7 @@ class SingletonIPC:
     def start(self):
         if debug:
             print("SingletonIPC.start()")
-        self._stop.clear()
+        self._stopEvent.clear()
         self.thread = threading.Thread(target=self._run)
         self.thread.setName('SingletonIPC_run')
         self.thread.start()
@@ -128,7 +135,7 @@ class SingletonIPC:
         if self.server != None:
             self.action_StopServer()
             
-        self._stop.set()
+        self._stopEvent.set()
         if self.thread != None:
             self.thread.join(1)
             if self.thread.isAlive():
@@ -223,7 +230,7 @@ class SingletonIPC:
         
         logger.debug(self.name + " " + "Thread start")
             
-        while not self._stop.isSet():
+        while not self._stopEvent.isSet():
             # logger.debug(self.name + " " + "Thread loop" )
             try:
                 s = self.queue.get(block=True, timeout= 0.0666)

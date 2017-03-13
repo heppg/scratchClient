@@ -101,6 +101,8 @@ class MQTT_Adapter (adapter.adapters.Adapter):
         loggingContext = "adapter '[{a:s}]'".format(a=self.name ) 
         
         foundConfig = False
+        _topic = None
+        _variable = None
         for _extension in child:
             if 'extension' == _extension.tag:
                 for _mqtt in _extension:
@@ -114,10 +116,13 @@ class MQTT_Adapter (adapter.adapters.Adapter):
                                     _topic = ps.attrib['topic']
                                 else:
                                     errorManager.append("{lc:s}: no 'topic'-attribute in <publish>".format( lc=loggingContext ))    
+                                
                                 if 'variable' in  ps.attrib:
                                     _variable = ps.attrib['variable']
                                 else:
-                                    errorManager.append("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
+                                    _variable = _topic
+                                    errorManager.appendWarning("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
+                                
                                 self.publishConfig.append( ( _topic, _variable))   
                                 
                             if 'subscribe' == ps.tag:
@@ -125,10 +130,13 @@ class MQTT_Adapter (adapter.adapters.Adapter):
                                     _topic = ps.attrib['topic']
                                 else:
                                     errorManager.append("{lc:s}: no 'topic'-attribute in <publish>".format( lc=loggingContext ))    
+                                
                                 if 'variable' in  ps.attrib:
                                     _variable = ps.attrib['variable']
                                 else:
-                                    errorManager.append("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
+                                    _variable = _topic
+                                    errorManager.appendWarning("{lc:s}: no 'variable'-attribute in <publish>".format( lc=loggingContext )) 
+                                
                                 self.subscribeConfig.append( ( _topic, _variable) )   
             
         if not foundConfig:

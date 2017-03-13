@@ -55,12 +55,12 @@ class SIM800_State:
 class SIM800_TimeoutState(SIM800_State):
     """Base class for states"""
     timeoutThread = None
-    _stop = None
+    _stopEvent = None
     t = None
     
     def __init__(self, name, parent):
         SIM800_State.__init__(self, name, parent)
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
 
     def entry(self):
         logger.info("{name:s} entry()".format(name=self.name))
@@ -69,7 +69,7 @@ class SIM800_TimeoutState(SIM800_State):
         self.startTimeout(3)
         
     def stopTimeout(self):
-        self._stop.set()
+        self._stopEvent.set()
         if self.timeoutThread != None:
             try:
                 self.timeoutThread.join(0.2)
@@ -80,7 +80,7 @@ class SIM800_TimeoutState(SIM800_State):
                         
     def startTimeout(self, t):
         self.t0 = t
-        self._stop.clear()    
+        self._stopEvent.clear()    
         self.timeoutThread = threading.Thread(target=self.run)
         self.timeoutThread.setName(self.name + "_timeout")
         self.timeoutThread.start()
@@ -107,7 +107,7 @@ class SIM800_TimeoutState(SIM800_State):
 
     def stopped(self):
         """helper method for the thread's run method to find out whether a stop is pending"""
-        return self._stop.isSet()
+        return self._stopEvent.isSet()
 
 class SIM800_State_START(SIM800_TimeoutState):
     """START"""

@@ -461,16 +461,16 @@ class BHelper:
         self._invokeStart()
   
     def _invokeStart(self):
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
 
         self.thread = threading.Thread(target=self._invoke)
         self.thread.setName('BHelper')
-        self._stop.clear()
+        self._stopEvent.clear()
         self.thread.start()
  
     def stop(self):
         """stop adapter thread. It is the thread's responsibility to timely shut down"""
-        self._stop.set()
+        self._stopEvent.set()
         
     def _invokeLater(self, **args):
         # print("_invokeLater {d:s}".format( d = str(args) ))
@@ -491,7 +491,7 @@ class BHelper:
             time.sleep(1)
         logger.info("BHelper._invoke running")
         
-        while not self._stop.isSet():
+        while not self._stopEvent.isSet():
             
             if debug_slow:
                 time.sleep(0.2)

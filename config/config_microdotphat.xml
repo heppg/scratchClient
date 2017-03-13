@@ -19,37 +19,28 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
     # MA 02110, USA
     # ===========================================================================
     -->
-    <description>
-        Publish / subscribe to a mqtt-Server.
-        The server must be started separately as a service.
-    </description>
+    <description>Pimorono Micro Dot Phat.
+        Text output</description>
 
     <!-- =========================================================================== -->
-    
-    <adapter class='adapter.iotAdapter.MQTT_Adapter'  name='mqtt'>
-        <description>interface to a mqtt-server</description>
+    <adapter class='adapter.microdotAdapter.Microdot_Adapter'  name='mda'>
         
-        <!--  
-           this adapter does implicit input_value and output_value-configuration based on the
-              content of mqtt-Tag.
-              mgtt/publish/@variable definitions are used as scratch variable names.
-              mgtt/subscribe/@variable definitions are used as scratch sensor names.
-        -->
-               
-        <extension>
-        <mqtt>
+        <description>Text output</description>
         
-            <!--  when @variable is omitted, the topic is taken as variable name -->
-            <publish topic="scratch/sample/a_value" />
-            <publish topic="scratch/sample/b_value" variable="b_value" />
-            <publish topic="scratch/sample/c_value" variable="c_value" />
+        <input_value name='text'>
+            <variable name='mdaText'/>
+        </input_value>
         
-            <subscribe topic="scratch/sample/d_value" variable="d_value" />
-        </mqtt>
-        </extension>
+        <input_value name='brightness'>
+            <variable name='bright'/>
+        </input_value>
         
-        <parameter name="mqtt.server" value="192.168.2.133"  />
-        <parameter name="mqtt.port" value="1883"  />
+        <input name='clear'>
+            <broadcast name='clearDisplay'/>
+        </input>
+        
+        <parameter name='microdot.rotate180' value='false' />
+        <parameter name='microdot.mirror' value='false' />
     </adapter>
 
 </config>

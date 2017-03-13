@@ -40,6 +40,7 @@
 # changes:
 # 
 changes = [
+'2017-03-13 added MICRO DOT PHAT-Adapter',
 '2017-03-05 extensions in config file are marked with <extension>. Old files work with new code. Affects ADC_MCP3202_10_Zone_Input, UNO_Adapter, MQTT_Adapter, MCP23S17_Adapter, CommunicationAdapter, WebsocketXY_Adapter.',    
 '2017-03-04 added mqtt-adapter.',    
 '2017-02-27 arduino.ino, added counter function, changes in config tool.',    
@@ -290,17 +291,17 @@ class ScratchSender(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.setName("scratchSender")
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
         self._lock = threading.Lock()
         
         #publishSubscribe.Pub.subscribe('scratch.output.value', self.sendValue)
         #publishSubscribe.Pub.subscribe('scratch.output.command', self.send)
 
     def stop(self):
-        self._stop.set()
+        self._stopEvent.set()
 
     def stopped(self):
-        return self._stop.isSet()
+        return self._stopEvent.isSet()
 
     def setSocket(self, socket):
         self.scratch_socket = socket
@@ -397,14 +398,14 @@ class ScratchListener(threading.Thread):
         threading.Thread.__init__(self)
         self.setName("scratchListener")
         self.scratch_socket = socket
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
         
         
     def stop(self):
-        self._stop.set()
+        self._stopEvent.set()
 
     def stopped(self):
-        return self._stop.isSet()
+        return self._stopEvent.isSet()
 
     def run(self):
         """main listening routine to remote sensor protocol"""
@@ -412,107 +413,215 @@ class ScratchListener(threading.Thread):
         logger.debug("scratchListener thread started")
         global scratchClient
         
-        # 
-        # data is current, aggregated bytes received. From these, records are extracted.
-        #
-        data = ''
-        # 
-        # chunk are bytes arriving from the socket
-        #
-        chunk = ''
-        #
-        # record is a full, interpretable array of bytes. 
-        #
-        record = ''
-        #
-        while not self.stopped():
-            try:
-                #
-                # get the bytes from the socket
-                # This is not necessarily a full record, just some bytes.
-                # 
-                chunk =  self.scratch_socket.recv(BUFFER_SIZE) 
-                
-                if logger.isEnabledFor( logging.DEBUG):
-                    x =  map(ord, chunk)
-                    s = ''
-                    for xx in x:
-                        s += "{xx:02x} ".format(xx=xx)
-                    logger.debug("received " + s )
-
-                #
-                # no data arriving means: connection closed
-                #
-                if len(chunk) == 0:
-                    scratchClient.event_disconnect()
-                    break
-
-                data += chunk
-                #
-                # there are multiple records possible in one 
-                # received chunk
-                # ... as well as the data could not be long enough for a full record.
-                #
-                # need at least 4 bytes to identify length of record.
-                #
-                while  len(data) >= 4:
+        if sys.version_info.major == 2:
+            # 
+            # data is current, aggregated bytes received. From these, records are extracted.
+            #
+            data = ''
+            # 
+            # chunk are bytes arriving from the socket
+            #
+            chunk = ''
+            #
+            # record is a full, interpretable array of bytes. 
+            #
+            record = ''
+            #
+            while not self.stopped():
+                try:
                     #
-                    # there are problems with scratch 1.4 2015-jan-15 on raspbian, not sending data according to bytes, but 
-                    # length according to chars. When there are utf-8-chars in data stream, this is
-                    # not the same.
-                    # For this situation, an emergency recovery strategy is implemented: look for first two bytes of buffer 
-                    # to be zero- it is reasonable that messages are less then 65536 bytes long.
-                    if ord(data[0]) != 0 or ord(data[1]) != 0:
-                        logger.error("fatal: first two bytes of message are not zero, discard data till zeros found")   
-                        discard = 0
-                        while len(data) > 2:
-                            if ord(data[0]) == 0 and ord(data[1]) == 0:
+                    # get the bytes from the socket
+                    # This is not necessarily a full record, just some bytes.
+                    # 
+                    chunk =  self.scratch_socket.recv(BUFFER_SIZE) 
+                    
+                    if logger.isEnabledFor( logging.DEBUG):
+                        x =  map(ord, chunk)
+                        s = ''
+                        for xx in x:
+                            s += "{xx:02x} ".format(xx=xx)
+                        logger.debug("received " + s )
+    
+                    #
+                    # no data arriving means: connection closed
+                    #
+                    if len(chunk) == 0:
+                        scratchClient.event_disconnect()
+                        break
+    
+                    data += chunk
+                    #
+                    # there are multiple records possible in one 
+                    # received chunk
+                    # ... as well as the data could not be long enough for a full record.
+                    #
+                    # need at least 4 bytes to identify length of record.
+                    #
+                    while  len(data) >= 4:
+                        #
+                        # there are problems with scratch 1.4 2015-jan-15 on raspbian, not sending data according to bytes, but 
+                        # length according to chars. When there are utf-8-chars in data stream, this is
+                        # not the same.
+                        # For this situation, an emergency recovery strategy is implemented: look for first two bytes of buffer 
+                        # to be zero- it is reasonable that messages are less then 65536 bytes long.
+                        if ord(data[0]) != 0 or ord(data[1]) != 0:
+                            logger.error("fatal: first two bytes of message are not zero, discard data till zeros found")   
+                            discard = 0
+                            while len(data) > 2:
+                                if ord(data[0]) == 0 and ord(data[1]) == 0:
+                                    break
+                                else:
+                                    data = data[1:]
+                                    discard += 1
+                            logger.error("discarded {disc:d} bytes".format(disc=discard))
+                            if not (len(data) >= 4 ):
                                 break
-                            else:
-                                data = data[1:]
-                                discard += 1
-                        logger.error("discarded {disc:d} bytes".format(disc=discard))
-                        if not (len(data) >= 4 ):
-                            break
-                    # end of error stratgey
-                    
-                    recordLen = (ord(data[0]) << 24) +     \
-                                (ord(data[1]) << 16) +     \
-                                (ord(data[2]) <<  8) +     \
-                                (ord(data[3]) <<  0 )                
-                    #            
-                    if recordLen > 512:
-                        logger.debug("unusual large record length received: {len:d}".format(len=recordLen))   
-                    #
-                    # are there enough bytes in data for a full record ?
-                    # if not, leave the loop here and wait for more chunks to arrive.
-                    #
-                    if len(data) < 4+recordLen:
+                        # end of error stratgey
+                        
+                        recordLen = (ord(data[0]) << 24) +     \
+                                    (ord(data[1]) << 16) +     \
+                                    (ord(data[2]) <<  8) +     \
+                                    (ord(data[3]) <<  0 )                
+                        #            
+                        if recordLen > 512:
+                            logger.debug("unusual large record length received: {len:d}".format(len=recordLen))   
+                        #
+                        # are there enough bytes in data for a full record ?
+                        # if not, leave the loop here and wait for more chunks to arrive.
+                        #
+                        if len(data) < 4+recordLen:
+                            if logger.isEnabledFor(logging.DEBUG):
+                                logger.debug("not enough data in buffer, have {have:d}, need {len:d}".format(have=len(data),len=recordLen))   
+                            break   
+                        
+                        record = data[4: 4+recordLen]
                         if logger.isEnabledFor(logging.DEBUG):
-                            logger.debug("not enough data in buffer, have {have:d}, need {len:d}".format(have=len(data),len=recordLen))   
-                        break   
-                    
-                    record = data[4: 4+recordLen]
+                            logger.debug( 'data received from scratch-Length: %d, Data: %s' , len(record), record)
+                        
+                        self.processRecord ( record )
+                        #
+                        # cut off the record from the received data
+                        #               
+                        data = data[4+recordLen:]
+                        #
+                except socket.timeout:
+                    # if logger.isEnabledFor(logging.DEBUG):
+                    #    logger.debug( "No data received: socket timeout")
+                    continue
+                except Exception as e:
+                    logger.warn(e)
                     if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug( 'data received from scratch-Length: %d, Data: %s' , len(record), record)
+                        traceback.print_exc(file=sys.stdout)
+                    scratchClient.event_disconnect()
+                    self.stop()
+                    continue
+                
+        if sys.version_info.major == 3:
+            # 
+            # data is current, aggregated bytes received. From these, records are extracted.
+            #
+            data = b''
+            # 
+            # chunk are bytes arriving from the socket
+            #
+            chunk = b''
+            #
+            # record is a full, interpretable array of bytes. 
+            #
+            record = ''
+            #
+            while not self.stopped():
+                try:
+                    #
+                    # get the bytes from the socket
+                    # This is not necessarily a full record, just some bytes.
+                    # 
+                    chunk =  self.scratch_socket.recv(BUFFER_SIZE) 
+
+                    if logger.isEnabledFor( logging.DEBUG):
+                        s = ''
+                        for xx in chunk:
+                            s += "{xx:02x} ".format(xx=xx)
+                        logger.debug("received " + s )
                     
-                    self.processRecord ( record )
+    
                     #
-                    # cut off the record from the received data
-                    #               
-                    data = data[4+recordLen:]
+                    # no data arriving means: connection closed
                     #
-            except socket.timeout:
-                # if logger.isEnabledFor(logging.DEBUG):
-                #    logger.debug( "No data received: socket timeout")
-                continue
-            except Exception as e:
-                logger.warn(e)
-                if logger.isEnabledFor(logging.DEBUG):
-                    traceback.print_exc(file=sys.stdout)
-                scratchClient.event_disconnect()
-                self.stop()
-                continue
+                    if len(chunk) == 0:
+                        scratchClient.event_disconnect()
+                        break
+    
+                    data += chunk
+                    #
+                    # there are multiple records possible in one 
+                    # received chunk
+                    # ... as well as the data could not be long enough for a full record.
+                    #
+                    # need at least 4 bytes to identify length of record.
+                    #
+                    while  len(data) >= 4:
+                        #
+                        # there are problems with scratch 1.4 2015-jan-15 on raspbian, not sending data according to bytes, but 
+                        # length according to chars. When there are utf-8-chars in data stream, this is
+                        # not the same.
+                        # For this situation, an emergency recovery strategy is implemented: look for first two bytes of buffer 
+                        # to be zero- it is reasonable that messages are less then 65536 bytes long.
+                        if data[0] != 0 or data[1] != 0:
+                            logger.error("fatal: first two bytes of message are not zero, discard data till zeros found")   
+                            discard = 0
+                            while len(data) > 2:
+                                if data[0] == 0 and data[1] == 0:
+                                    break
+                                else:
+                                    data = data[1:]
+                                    discard += 1
+                            logger.error("discarded {disc:d} bytes".format(disc=discard))
+                            if not (len(data) >= 4 ):
+                                break
+                        # end of error stratgey
+                        
+                        recordLen = ( data[0] << 24) +     \
+                                    ( data[1] << 16) +     \
+                                    ( data[2] <<  8) +     \
+                                    ( data[3] <<  0 )                
+                        #            
+                        if recordLen > 512:
+                            logger.debug("unusual large record length received: {len:d}".format(len=recordLen))   
+                        #
+                        # are there enough bytes in data for a full record ?
+                        # if not, leave the loop here and wait for more chunks to arrive.
+                        #
+                        if len(data) < 4+recordLen:
+                            if logger.isEnabledFor(logging.DEBUG):
+                                logger.debug("not enough data in buffer, have {have:d}, need {len:d}".format(have=len(data),len=recordLen))   
+                            break   
+                        
+                        data4 = data[4: 4+recordLen]
+                        #print( data4)
+                        record = data4.decode('utf-8') 
+                        
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug( 'data received from scratch-Length: %d, Data: %s' , len(record), record)
+                        
+                        self.processRecord ( record )
+                        #
+                        # cut off the record from the received data
+                        #               
+                        data = data[4+recordLen: ]
+                        #
+                except socket.timeout:
+                    # if logger.isEnabledFor(logging.DEBUG):
+                    #    logger.debug( "No data received: socket timeout")
+                    continue
+                except Exception as e:
+                    logger.warn(e)
+                    if logger.isEnabledFor(logging.DEBUG):
+                        traceback.print_exc(file=sys.stdout)
+                    scratchClient.event_disconnect()
+                    self.stop()
+                    continue
+
         logger.debug("scratchListener thread stopped")
         
     broadcast_pattern = re.compile('broadcast "([^"]*)"')
@@ -574,11 +683,11 @@ class ThreadManager:
         logger.debug("ThreadManager, cleanup_socket")
 
         for thread in self.socketThreads:
-            logger.debug("cleanup_socket: stop thread %s", str(thread))
+            logger.debug("cleanup_socket: stop thread %s", str(thread.name ))
             thread.stop()
     
         for thread in self.socketThreads:
-            logger.debug("cleanup_socket: wait join %s", str(thread))
+            logger.debug("cleanup_socket: wait join %s", str(thread.name ))
             try:
                 thread.join(1)
                 if thread.isAlive():
@@ -632,7 +741,7 @@ class ScratchClient(threading.Thread):
         # import pdb; pdb.set_trace() 
         #global forceSimulation 
         threading.Thread.__init__(self, name="scratchClient")
-        self._stop = threading.Event()
+        self._stopEvent = threading.Event()
 
         self.myQueue = helper.abstractQueue.AbstractQueue()
 
@@ -775,10 +884,10 @@ class ScratchClient(threading.Thread):
         self.event_connect()
 
     def stop(self):
-        self._stop.set()
+        self._stopEvent.set()
 
     def stopped(self):
-        return self._stop.isSet()
+        return self._stopEvent.isSet()
         
     def run(self):
         logger.debug("%s thread started", self.getName() )
@@ -1049,13 +1158,17 @@ if __name__ == '__main__':
     else:        
         lFile = 'logging/logging.conf'
     
-    
+
     # print(modulePathHandler.getScratchClientBaseRelativePath(lFile))
             
     logging.config.fileConfig( modulePathHandler.getScratchClientBaseRelativePath(lFile) )
     
     logger = logging.getLogger(__name__)
     
+    if sys.version_info.major == 2:
+        with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+            logger.info('Consider using python3 to execute this program !')
+
     logging.debug("create ScratchClient")
     # ----------------------------------------------------------
     # look for config files
@@ -1138,7 +1251,7 @@ if __name__ == '__main__':
         
     singletonInstance.start()
     
-    logger.debug("sys.path    = {p:s}".format(p=sys.path))
+    logger.debug("sys.path    = {p:s}".format(p=str(sys.path)) )
     # print('start scratch client')
     
     scratchClient = ScratchClient()
