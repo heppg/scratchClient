@@ -27,6 +27,7 @@ import threading
 import serial
 import os
 import traceback
+import sys
 
 if os.name == 'posix':
     import termios
@@ -58,7 +59,7 @@ debug_2_blink   = False
 #
 # show lines received/send from serial line
 #
-show = True
+show = False
 #
 # --------------------------------------------------------------------------------------
 
@@ -405,21 +406,32 @@ class UNO_Adapter (adapter.adapters.Adapter):
                     # ------------------------
                     elif _dir == self.OUT:
                         self._digital_outputs |= ( 1 << self.io_options[_id]['pos'])
-                        method = MethodType(self.io_options[_id]['ifunc'], self, type(self))
+                        if sys.version_info.major == 2:
+                            method = MethodType(self.io_options[_id]['ifunc'], self, type(self))
+                        if sys.version_info.major == 3:
+                            method = MethodType(self.io_options[_id]['ifunc'], self )
+                            
                         if debug_0_debug:
                             print("register ", "input" + _id )
                         setattr(self, "input" + _id, method )   
                         pass
                     elif _dir == self.PWM:
                         self._digital_pwms |= ( 1 << self.io_options[_id]['pos'])
-                        method = MethodType(self.io_options[_id]['pfunc'], self, type(self))
+                        if sys.version_info.major == 2:
+                            method = MethodType(self.io_options[_id]['pfunc'], self, type(self))
+                        if sys.version_info.major == 3:
+                            method = MethodType(self.io_options[_id]['pfunc'], self )
                         if debug_0_debug:
                             print("register ", "pwm" + _id )
                         setattr(self, "pwm" + _id, method )   
                         pass
                     elif _dir == self.SERVO:
                         self._digital_servos |= ( 1 << self.io_options[_id]['pos'])
-                        method = MethodType(self.io_options[_id]['sfunc'], self, type(self))
+                        if sys.version_info.major == 2:
+                            method = MethodType(self.io_options[_id]['sfunc'], self, type(self))
+                        if sys.version_info.major == 3:
+                            method = MethodType(self.io_options[_id]['sfunc'], self )
+                            
                         if debug_0_debug:
                             print("register ", "servo" + _id )
                         setattr(self, "servo" + _id, method )   
@@ -560,12 +572,16 @@ class UNO_Adapter (adapter.adapters.Adapter):
                 
                 continue
             
+            if sys.version_info.major == 3:
+                line = line.decode('ascii')
+                
             if ( line == ''):
                 continue 
             
             line = line.rstrip()
             if show or debug_0_debug or debug_1_verbose:
                 with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                    # print ( type(line), line)
                     logger.info("serial  in: {l:s}".format( l=line )) 
                 
             if line.startswith( 'config?' ):
@@ -696,15 +712,17 @@ class UNO_Adapter (adapter.adapters.Adapter):
                             self.state_arduinoConfigured = 'CONFIGURED'
                             # put the last value received from scratch onto the queue. Use prio 1 for this.
                             # there is the faint possibility that some values are lost, as only nextState is set here.
-                            
-                            for val in self.lastInputValue.itervalues():
-                                self.queue_data.put(1, val)
+                            if sys.version_info.major == 2:
+                                for val in self.lastInputValue.itervalues():
+                                    self.queue_data.put(1, val)
+                            if sys.version_info.major == 3:
+                                for val in iter( self.lastInputValue.values() ):
+                                    self.queue_data.put(1, val)
                             continue
                         else:        
                             if show:
                                 logger.info("serial out: {l:s}".format( l=s )) 
-                            self.ser.write(s+"\n");
-                            self.ser.flush()
+                            self._sendSerial(s+"\n")
                         
                         # slow down in debug_0_debug mode
                         if debug_0_debug or debug_1_verbose:
@@ -746,9 +764,7 @@ class UNO_Adapter (adapter.adapters.Adapter):
                             with helper.logging.LoggingContext(logger, level=logging.DEBUG):
                                 logger.info("{n:s}: serial out: {l:s}".format( n=self.name, l=s )) 
                             
-                        self.ser.write(s+"\n");
-                        self.ser.flush()
-                        
+                        self._sendSerial(s+"\n")
                         # slow down in debug_0_debug mode
                         if debug_0_debug or debug_1_verbose:
                             self.delay(0.4)
@@ -764,14 +780,21 @@ class UNO_Adapter (adapter.adapters.Adapter):
         try:
             if show:
                 logger.info("serial out: {l:s}".format( l='disconnect' )) 
-            self.ser.write("disconnect" +"\n");
-            self.ser.flush()
+            self._sendSerial("disconnect"+"\n")
+
         except Exception as e:
             pass
                 
         logger.debug("_runSend %s", "end")
 
-    
+    def _sendSerial(self, data):
+        if sys.version_info.major == 2:
+            self.ser.write(data+"\n");
+            
+        if sys.version_info.major == 3:
+            self.ser.write( bytearray( data+"\n", encoding='ascii') );
+            self.ser.flush()
+            
     def actionStartThreads(self):
         """  success
             fail """
@@ -841,21 +864,21 @@ class UNO_Adapter (adapter.adapters.Adapter):
             pass
         
         def start(self):
-            logger.error(self.name(), "start() not handled")
+            logger.error("{n:s}: start() not handled".format(n=self.name()))
             return None
         
         def stop(self):
-            logger.error(self.name(),"stop() not handled")
+            logger.error("{n:s}: stop() not handled".format(n=self.name()))
             return None
         def serialError(self):
-            logger.error(self.name(),"serialError() not handled")
+            logger.error("{n:s}: serialError() not handled".format(n=self.name()))
             return None
         def success(self):
-            logger.error(self.name(),"success() not handled")
+            logger.error("{n:s}: success() not handled".format(n=self.name()))
             return None
                 
         def timeout(self):
-            logger.error(self.name(),"timeout() not handled")
+            logger.error("{n:s}: timeout() not handled".format(n=self.name()))
             return None
                 
         def startTimer(self, t):

@@ -26,11 +26,10 @@ except ImportError:
     elif sys.version_info[0] == 3:
         exit("This library requires python3-smbus\nInstall with: sudo apt-get install python3-smbus")
 
-
+debug = False
 
 class Font_5_7:
     
-    debug = False
     font_5_7 = {}
     
     font_5_7[ ' '] = """
@@ -77,6 +76,15 @@ class Font_5_7:
           :  * *:
           :**** :
           :  *  :
+    """
+    font_5_7[ '§'] = """
+          :  ** :
+          : *   :
+          :  *  :
+          : * * :
+          :  *  :
+          :   * :
+          : **  :
     """
     font_5_7[ '%'] = """
           :**   :
@@ -1027,7 +1035,7 @@ class Font_5_7:
                                
             self.font[f_5_7] = _bytes
             
-            if self.debug: 
+            if debug: 
                 print( "font[ '{c:s}' ] = [0x{b0:02x}, 0x{b1:02x}, 0x{b2:02x}, 0x{b3:02x}, 0x{b4:02x}]".format(
                                 c = f_5_7,
                                 b0= _bytes[0],
@@ -1039,7 +1047,7 @@ class Font_5_7:
     def getPattern(self, char):
         if char in self.font:
             return self.font[char]
-        if self.debug:
+        if debug:
             print("char    :", char)
             print("charType:", type(char))
             
@@ -1502,16 +1510,21 @@ class Microdot_Adapter(adapter.adapters.Adapter):
          
     def text(self, value):
         """input from scratch to adapter"""
-        #print("value   ", value)
+        if debug:
+            print("text, value   ", value)
+        
         self.mda.clear()
+        
         if sys.version_info.major == 2: 
-            sx = unicode(value, encoding='utf-8',  errors='replace')
-            #print("sx     ", sx)
-            #print("len(sx)", len(sx) )
-            
+            try:
+                sx = unicode(value, encoding='utf-8',  errors='replace')
+            except TypeError:
+                sx = value
             self.mda.write_string( sx, kerning=False)
+            
         if sys.version_info.major == 3: 
             self.mda.write_string( value, kerning=False)
+            
         self.mda.show()
         
     def clear(self):

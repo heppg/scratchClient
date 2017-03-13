@@ -750,7 +750,14 @@ class AdaptersHandler(BaseHandler):
         svg.set('width', str(column_90+1))
         svg.set('height', str(current_height+20))
         
-        svgText  = ET.tostring(svg)
+        if sys.version_info.major == 2:
+            svgText  = ET.tostring(svg)
+            
+        if sys.version_info.major == 3:
+            svgText  = ET.tostring(svg).decode('utf-8')
+        
+        if debug:
+            print(svgText)    
         logger.debug(svgText)
 
         #
@@ -1026,9 +1033,23 @@ class AdapterAnimationWebSocket(WebSocket):
         Automatically sends back the provided ``message`` to
         its originating endpoint.
         """
-        if debug:
-            print(message.data)
-        msg = json.loads(message.data)
+        
+        if sys.version_info.major < 3:
+            if debug:
+                print('message.data:', message.data)
+            md = message.data
+            if debug:
+                print('md:', md)
+                
+            msg = json.loads( md )
+
+        if sys.version_info.major == 3:
+            if debug:
+                print('message.data:', message.data)
+            md = message.data.decode('utf-8')
+            if debug:
+                print('md:', md)
+            msg = json.loads( md )
         
         if msg['command'] == 'input.command':
             publishSubscribe.Pub.publish('scratch.input.command.{name:s}'.format(name=msg['scratch']), { 'name':msg['scratch'] } ) 
