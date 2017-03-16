@@ -17,7 +17,16 @@
 
 import adapter
 
-import bluepy
+try:
+    import bluepy
+except ImportError:
+    exit("""
+    This library requires the bluepy module
+      Install with: 
+           sudo pip install bluepy
+           sudo pip3 install bluepy
+    """)
+    
 import array
 import struct
 import math
@@ -624,7 +633,7 @@ class BaseService:
                                   )
         
     def readCharacteristic(self, service, charac, targetFunction):
-        logger.info("{}.readCharacteristic ".format( self.name) )
+        logger.info("{}.readCharacteristic {} {}".format( self.name, service, charac) )
         self.bHelper._invokeLater(op='read', 
                                   service=service, 
                                   characteristic=charac, 
@@ -653,15 +662,30 @@ class LegoService(BaseService):
         # self.init_notification('notify_format',  self.INPUT_SERVICE_UUID, self.CHARACTERISTIC_INPUT_FORMAT_UUID, self, self.notify_data )    
 
     def notify_data (self, cHandle, name, data):
-        if debug_notify:
-            print('notify_data', name, data)
-        service = self.getService(data[1])
-        if service == None:
-            logger.error('notify_data, no service for port {p:d}'.format(p= data[1]))
-        else:
-            service.setData(data)
-        
+        # catch Exceptions, just in case something goes wrong then BT-stack is
+        # not working
+        try:
+            if logger.isEnabledFor(logging.DEBUG):
+                print('notify_data', cHandle, 'name', name, 'data', data)
+                
+            service = self.getService(data[1])
+            if service == None:
+                logger.error('notify_data, no service for port {p:d}'.format(p= data[1]))
+            else:
+                service.setData(data)
+        except Exception as e:
+            logger.error("_invoke_ {}".format( e) )
+            traceback.print_exc()
+
     def notify_attached_io(self, connectInfo):
+        
+        if logger.isEnabledFor(logging.DEBUG):
+            port=connectInfo.port
+            try:
+                ioType=connectInfo.ioType.ioType 
+            except Exception:
+                ioType= '<undef>'
+            logger.debug('notify_attached_io, iotype={iotype:s} port={port:s}'.format( port=str(port) , iotype=str(ioType) ) )
         
         if connectInfo.isUsed():
             service = ServiceAdapterFactory.createService( connectInfo,self)
@@ -706,14 +730,20 @@ class LegoService(BaseService):
      
              
 class DeviceService(BaseService):
-    HUB_SERVICE = MyUUID( "1523", MyUUID.UUID_CUSTOM_BASE )
     
+    HUB_SERVICE = MyUUID( "1523", MyUUID.UUID_CUSTOM_BASE )
+        
     HUB_CHARACTERISTIC_NAME = MyUUID( "1524", MyUUID.UUID_CUSTOM_BASE )
     HUB_CHARACTERISTIC_COLOR = MyUUID( "1525", MyUUID.UUID_CUSTOM_BASE )
     HUB_CHARACTERISTIC_BUTTON_STATE = MyUUID( "1526", MyUUID.UUID_CUSTOM_BASE )
     HUB_CHARACTERISTIC_ATTACHED_IO = MyUUID( "1527", MyUUID.UUID_CUSTOM_BASE )
     HUB_CHARACTERISTIC_LOW_VOLTAGE_ALERT = MyUUID( "1528", MyUUID.UUID_CUSTOM_BASE )
     HUB_CHARACTERISTIC_HIGH_CURRENT_ALERT = MyUUID( "1529", MyUUID.UUID_CUSTOM_BASE )
+    
+    DEVICE_INFORMATION = MyUUID( "180A", MyUUID.UUID_STANDARD_BASE )
+    DEVICE_INFORMATION_FIRMWARE = MyUUID( "2A26", MyUUID.UUID_STANDARD_BASE )
+    DEVICE_INFORMATION_SOFTWARE = MyUUID( "2A28", MyUUID.UUID_STANDARD_BASE )
+    DEVICE_INFORMATION_MANUFACTURER = MyUUID( "2A29", MyUUID.UUID_STANDARD_BASE )
     
     deviceName = None
     buttonState = None
@@ -726,8 +756,13 @@ class DeviceService(BaseService):
         self.legoService = legoService
         self.bHelper = bHelper
         
-        if True: #TODO
-            self.deviceName = self.readCharacteristic(self.HUB_SERVICE, self.HUB_CHARACTERISTIC_NAME, self.setDeviceName)
+        if True: 
+            self.readCharacteristic(self.HUB_SERVICE, self.HUB_CHARACTERISTIC_NAME, self.setDeviceName)
+            #
+            # for debug purpose only
+            self.readCharacteristic(self.DEVICE_INFORMATION, self.DEVICE_INFORMATION_FIRMWARE, self.setFirmwareRevision)
+            self.readCharacteristic(self.DEVICE_INFORMATION, self.DEVICE_INFORMATION_SOFTWARE, self.setSoftwareRevision)
+            self.readCharacteristic(self.DEVICE_INFORMATION, self.DEVICE_INFORMATION_MANUFACTURER, self.setManufacturerName)
         
         self.init_notification('attached_io',        self.HUB_SERVICE, self.HUB_CHARACTERISTIC_ATTACHED_IO,        self, self.notify_attached_io        )    
         # found it sometimes unreliable to set up the formats (voltage sometimes not send)
@@ -741,10 +776,20 @@ class DeviceService(BaseService):
         logger.info("DeviceService.setDeviceName {}".format(name))
         self.deviceName = name
         
- 
+    def setFirmwareRevision(self, name):
+        logger.info("DeviceService.setFirmwareRevision {}".format(name))
+        self.firmwareRevision = name
+        
+    def setSoftwareRevision(self, name):
+        logger.info("DeviceService.setSoftwareRevision {}".format(name))
+        self.softwareRevision = name
+        
+    def setManufacturerName(self, name):
+        logger.info("DeviceService.setManufacturerName {}".format(name))
+        self.manufacturerName = name
+        
     def notify_attached_io (self, cHandle, name, data):
         # print(name)
-        
         connectInfo = ConnectInfo(data)
         # print( "    connectInfo {p:s}".format(p= str(connectInfo)))
         self.legoService.notify_attached_io(connectInfo)
@@ -1026,7 +1071,7 @@ class Motor( LegoAdapterService):
         
         if not isPositive :
             actualResultInt = -actualResultInt;
-        print ( actualResultInt)
+        # print ( actualResultInt)
         
         s = array.array('B')
         s.append(self.connectInfo.port)
@@ -1036,7 +1081,7 @@ class Motor( LegoAdapterService):
         # len
         s.append( 1) 
         s.append( actualResultInt & 0xff )
-        print ( actualResultInt,":",  _hexData(s))
+        # print ( actualResultInt,":",  _hexData(s))
         
         self.parent.writeCommand(s) 
         
@@ -1486,7 +1531,8 @@ class Wedo2Adapter(adapter.adapters.Adapter):
         
         address = btle_address
         
-        logger.warn("{name:s}: Press 'connect'-Button on Hub".format(name=self.name)) 
+        with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+            logger.info("{name:s}: Press 'connect'-Button on Hub".format(name=self.name)) 
         
         peripheral = None
         
@@ -1499,7 +1545,8 @@ class Wedo2Adapter(adapter.adapters.Adapter):
                     devices = scanner.scan(timeout=5)
                     for device in devices:
                         # 9 : 'Complete Local Name'
-                        logger.warn("{name:s}: found device {addr:s}, {dname:s}".format(name=self.name, addr=device.addr, dname=device.getValueText( 9 )))
+                        with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                            logger.info("{name:s}: found device {addr:s}, {dname:s}".format(name=self.name, addr=device.addr, dname=device.getValueText( 9 )))
                         
                         if  btle_name == device.getValueText( 9 ):
                             address = device.addr
@@ -1508,6 +1555,8 @@ class Wedo2Adapter(adapter.adapters.Adapter):
                             found = True
                             break  
                 except bluepy.btle.BTLEException as e:
+                    if "Failed to execute mgmt cmd 'le on'" == e.message:
+                        logger.warn("{name:s}: Check if bluetooth is enabled !".format(name=self.name ) )
                     logger.error("{name:s}: {msg:s}".format(name=self.name, msg=e.message) )
                 self.delay(3)
                     
@@ -1997,4 +2046,3 @@ class Wedo2Adapter(adapter.adapters.Adapter):
         if self.strict:
             serviceBroker.set_tilt2_Mode(value)
    
-  
