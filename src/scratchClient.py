@@ -40,6 +40,7 @@
 # changes:
 # 
 changes = [
+'2017-03-19 Minecraft-Adapter for pi, based on mcpi-library',
 '2017-03-16 Wedo2-Adapter, additional log messages., wedo2scratch script, changed two buttons in motion sensor setup.',
 '2017-03-13 added SCROLL PHAT HD-Adapter and sample scratch script',
 '2017-03-13 added MICRO DOT PHAT-Adapter',

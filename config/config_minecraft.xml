@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<config version='1.0'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="config.xsd" >
+    <!--
+    # ===========================================================================
+    # Copyright (C) 2017  Gerhard Hepp
+    #
+    # This program is free software; you can redistribute it and/or modify it under the terms of
+    # the GNU General Public License as published by the Free Software Foundation; either version 2
+    # of the License, or (at your option) any later version.
+    #
+    # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+    # without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+    # See the GNU General Public License for more details.
+    #
+    # You should have received a copy of the GNU General Public License along with this program; if
+    # not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+    # MA 02110, USA
+    # ===========================================================================
+    -->
+    <description>
+        
+    </description>
+
+    <!-- =========================================================================== -->
+    
+    <adapter class='adapter.minecraftAdapter.MinecraftAdapter'  name='minecraft'>
+        <description>interface to a minecraft-10-server on pi</description>
+        
+        <input_value name='playerX'> <variable name="playerX"/></input_value>
+        <input_value name="playerY"> <variable name="playerY"/></input_value>
+        <input_value name="playerZ"> <variable name="playerZ"/></input_value>
+
+        <input_value name='cameraX'> <variable name="cameraX"/></input_value>
+        <input_value name="cameraY"> <variable name="cameraY"/></input_value>
+        <input_value name="cameraZ"> <variable name="cameraZ"/></input_value>
+
+        <input_value name="mcpiX"> <variable name="mcpiX"/></input_value>
+        <input_value name="mcpiY"> <variable name="mcpiY"/></input_value>
+        <input_value name="mcpiZ"> <variable name="mcpiZ"/></input_value>
+          
+        <input_value name="mcpiX0"> <variable name="mcpiX0"/></input_value>
+        <input_value name="mcpiY0"> <variable name="mcpiY0"/></input_value>
+        <input_value name="mcpiZ0"> <variable name="mcpiZ0"/></input_value>
+        <!--
+        <input_value name="mcpiX1"> <variable name="mcpiX1"/></input_value>
+        <input_value name="mcpiY1"> <variable name="mcpiY1"/></input_value>
+        <input_value name="mcpiZ1"> <variable name="mcpiZ1"/></input_value>
+         -->
+        <input_value name="blockTypeId"> <variable name="blockTypeId"/></input_value>
+        <input_value name="blockData"> <variable name="blockData"/></input_value>
+        <!--  
+        <input_value name="speed">   <variable name="speed"/></input_value>
+        <input_value name="steps">   <variable name="steps"/></input_value>
+        <input_value name="degrees"> <variable name="degrees"/></input_value>
+        <input_value name="radius">  <variable name="radius"/></input_value>
+        
+        <input_value name="fill">    <variable name="fill"/></input_value>
+         -->
+        <output_value name="posY">
+            <sensor name="posY"/>
+        </output_value>
+        
+        <output_value name="blockFound_id">
+            <sensor name="blockFound.id"/>
+        </output_value>
+        
+        <output_value name="blockFound_data">
+            <sensor name="blockFound.data"/>
+        </output_value>
+        
+        <input name="hello_minecraft"> <broadcast name="hello_minecraft" /></input>
+        <input name="setPos">          <broadcast name="setPos" /></input>
+        <input name="setBlock">        <broadcast name="setBlock" /></input>
+        <input name="setBlocks">       <broadcast name="setBlocks" /></input>
+        <input name="getHeight">       <broadcast name="getHeight" /></input>
+        <input name="getBlockWithData"> <broadcast name="getBlock" /></input>
+        <input name="reset">           <broadcast name="reset" /></input>
+      
+        <input name="cameraSetFixed">  <broadcast name="camera.setFixed" /></input>
+        <input name="cameraSetNormal"> <broadcast name="camera.setNormal" /></input>
+        <input name="cameraSetFollow"> <broadcast name="camera.setFollow" /></input>
+        <input name="cameraSetPos">    <broadcast name="camera.setPos" /></input>
+        <!-- 
+        <input name="stuffDrawLine">   <broadcast name="stuff:drawLine" /></input>
+        <input name="stuffDrawShere">  <broadcast name="stuff:drawSphere" /></input>
+        <input name="stuffDrawCircle"> <broadcast name="stuff:drawCircle" /></input>
+         -->
+        <parameter name="minecraft.server" value="localhost"  />
+        <parameter name="minecraft.port" value="4711"  />
+    </adapter>
+
+</config>
