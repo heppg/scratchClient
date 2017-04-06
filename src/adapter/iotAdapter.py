@@ -40,6 +40,10 @@ class MQTT_Adapter (adapter.adapters.Adapter):
                            'mqtt.server' : 'localhost', 
                            'mqtt.port'   : '1883'
                           }
+    optionalParameters = {  
+                           'mqtt.username' : 'test', 
+                           'mqtt.password' : 'test'
+                          }
     publishConfig = None
     subscribeConfig = None
     
@@ -197,7 +201,18 @@ class MQTT_Adapter (adapter.adapters.Adapter):
         _port = int(self.parameters['mqtt.port'])
         _host = self.parameters['mqtt.server']
         
+        _username = None
+        if 'mqtt.username' in self.parameters:
+            _username = self.parameters['mqtt.username']
+        _password = None
+        if 'mqtt.password' in self.parameters:
+            _password = self.parameters['mqtt.password']
+            
         self.client = mqtt.Client()
+        
+        if _username != None:
+            self.client.username_pw_set(_username, _password)
+            
         self.client.on_message = self.on_message
 
         START = 0

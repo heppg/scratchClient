@@ -48,8 +48,16 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
         </mqtt>
         </extension>
         
-        <parameter name="mqtt.server" value="192.168.2.133"  />
+        <parameter name="mqtt.server" value="192.168.2.160"  />
         <parameter name="mqtt.port" value="1883"  />
+        
+        <!--  optional parameter, 
+              set only when server supports passwort authentication   -->
+        <!-- 
+            <parameter name="mqtt.username" value="test"  />
+            <parameter name="mqtt.password" value="test"  />
+         -->
+        
     </adapter>
 
 </config>

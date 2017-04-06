@@ -3,14 +3,51 @@ import adapter
 try:
     import mcpi
     import mcpi.minecraft
+    import mcpi.connection
     
 except ImportError:
     exit("This adapter requires mcpi library to be installed.")
 
 import helper.abstractQueue
+import select
+import sys
+import traceback
+import logging
+import helper.logging
+logger = logging.getLogger(__name__)
+
 
 debug = False
 
+class ProblemAwareConnection( mcpi.connection.Connection):
+    """overwrite drain method, as in case of error this does not throw an exception"""
+    
+    def __init__(self, address , port):
+        if debug:
+            print("address", address, 'port', port)
+        mcpi.connection.Connection.__init__(self, address, port)
+        
+    def drain(self):
+        """Drains the socket of incoming data"""
+        while True:
+            readable, _, _ = select.select([self.socket], [], [], 0.0)
+            if not readable:
+                break
+            data = self.socket.recv(1500)
+            #
+            # fix
+            #
+            if len(data) == 0:
+                raise Exception("connection lost")
+
+            e =  "Drained Data: <%s>\n"%data.strip()
+            e += "Last Message: <%s>\n"%self.lastSent.strip()
+            sys.stderr.write(e)
+            
+#    def send(self, f, *data):
+#        super(type(mcpi.connection.Connection), self).send(  f, data)
+#        print(self.lastSend)
+ 
 class MinecraftAdapter(adapter.adapters.Adapter):
     
     # -----------------------------------------
@@ -29,7 +66,8 @@ class MinecraftAdapter(adapter.adapters.Adapter):
         # General Adapter
         adapter.adapters.Adapter.__init__(self)
         self.commandQueue = helper.abstractQueue.AbstractQueue()
-         
+        
+        self.connected = False 
         
                             
     def setActive (self, active):
@@ -64,79 +102,116 @@ class MinecraftAdapter(adapter.adapters.Adapter):
             #self.variables ['radius'] = 0
             #self.variables ['fill'] = 0
 
-            server =  self.parameters['minecraft.server']  
-            port = int( self.parameters['minecraft.port'] ) 
-            if server.strip() == '':
-                self.mc = mcpi.minecraft.Minecraft.create()
-            else:
-                self.mc = mcpi.minecraft.Minecraft.create(server, port )
             #self.mcDrawing = mcstuff.minecraftstuff.MinecraftDrawing(self.mc)
             
-            if debug:
-                print( self.mc)
             pass
         else:
             pass   
         
     def run(self):
+           
+        server =  self.parameters['minecraft.server']  
+        port = int( self.parameters['minecraft.port'] )
+         
+        state = 0
+        
         while not self.stopped():
-            try:
-                d = self.commandQueue.get(block=True, timeout= 0.1)
-            except helper.abstractQueue.AbstractQueue.Empty:
-                continue 
-    
-            if d['command'] == 'postToChat':
-                self.mc.postToChat( d['args'] )
+        
+            if state == 0:
+                self.connected = False
+                try:
+
+                    if server.strip() == '':
+                        connection= ProblemAwareConnection( "localhost",  4711)
+                    else:
+                        connection= ProblemAwareConnection( server, port)
+                    
+                    if debug: print(connection)
+                    
+                    self.mc = mcpi.minecraft.Minecraft ( connection)
+
+                    with helper.logging.LoggingContext(logger, level=logging.DEBUG):
+                        logger.info("{name:s}: connected to minecraft server".format(name=self.name))
+                    state = 4
+                    
+                except Exception as e:
+                    if debug: print(e)
+                    logger.error("{name:s}: cannot connect to minecraft server".format(name=self.name))
+                    state = 2
+
+            elif state == 2:
+                if debug: print("delay")
+                self.connected = False
+                self.delay(10)
+                state = 0
                 
-            elif d['command'] == 'setPos':
-                self.mc.player.setPos( d['args'] )
-                
-            elif d['command'] == 'cameraSetFixed':
-                self.mc.camera.setFixed( )
-                
-            elif d['command'] == 'cameraSetPos':
-                self.mc.camera.setPos( d['args'] )
-                
-            elif d['command'] == 'cameraSetNormal':
-                self.mc.camera.setNormal( self.mc.getPlayerEntityIds() [0] )
-                
-            elif d['command'] == 'cameraSetFollow':
-                self.mc.camera.setFollow( self.mc.getPlayerEntityIds() [0] )
-                
-            elif d['command'] == 'setBlock':
-                self.mc.setBlock( d['args'] )
-                
-            elif d['command'] == 'setBlocks':
-                self.mc.setBlocks( d['args'] )
-                
-            elif d['command'] == 'getHeight':
-                _posY = self.mc.getHeight( d['args'] )
-                
-                self.posY ( _posY)
-                self.mc.postToChat("posY: %d" % _posY)
-                
-            elif d['command'] == 'getBlockWithData':
-                blockFound = self.mc.getBlockWithData( d['args'])
-                if debug:
-                    print( blockFound )
-                self.blockFound_id( blockFound.id )
-                self.blockFound_data( blockFound.data)
- 
-            elif d['command'] == 'reset':
-                self.mc.postToChat('reset the world')
-                self.mc.setBlocks(-100, 0, -100, 100, 63, 100, 0, 0)
-                self.mc.setBlocks(-100, -63, -100, 100, -2, 100, 1, 0)
-                self.mc.setBlocks(-100, -1, -100, 100, -1, 100, 2, 0)
-                self.mc.player.setPos(0, 0, 0)
-            
-            
-            #elif d['command'] == 'stuffDrawLine':
-            #    self.mcDrawing.drawLine( d['args'])
-            #elif d['command'] == 'stuffDrawSphere':
-            #    self.mcDrawing.drawLine( d['args'])
-            #elif d['command'] == 'stuffDrawCircle':
-            #    self.mcDrawing.drawCircle( d['args'])
-                                
+            elif state == 4:    
+                self.connected = True
+                try:
+                    d = self.commandQueue.get(block=True, timeout= 0.1)
+                except helper.abstractQueue.AbstractQueue.Empty:
+                    continue 
+        
+                try:
+                    if d['command'] == 'postToChat':
+                        self.mc.postToChat( d['args'] )
+                        
+                    elif d['command'] == 'setPos':
+                        self.mc.player.setPos( d['args'] )
+                        
+                        
+                    elif d['command'] == 'cameraSetFixed':
+                        self.mc.camera.setFixed( )
+                        
+                    elif d['command'] == 'cameraSetPos':
+                        self.mc.camera.setPos( d['args'] )
+                        
+                    elif d['command'] == 'cameraSetNormal':
+                        self.mc.camera.setNormal( self.mc.getPlayerEntityIds() [0] )
+                        
+                    elif d['command'] == 'cameraSetFollow':
+                        self.mc.camera.setFollow( self.mc.getPlayerEntityIds() [0] )
+                        
+                    elif d['command'] == 'setBlock':
+                        self.mc.setBlock( d['args'] )
+                        
+                    elif d['command'] == 'setBlocks':
+                        self.mc.setBlocks( d['args'] )
+                        
+                    elif d['command'] == 'getHeight':
+                        _posY = self.mc.getHeight( d['args'] )
+                        
+                        self.posY ( _posY)
+                        self.mc.postToChat("posY: %d" % _posY)
+                        
+                    elif d['command'] == 'getBlockWithData':
+                        blockFound = self.mc.getBlockWithData( d['args'])
+                        if debug:
+                            print( blockFound )
+                        self.blockFound_id( blockFound.id )
+                        self.blockFound_data( blockFound.data)
+         
+                    elif d['command'] == 'reset':
+                        self.mc.postToChat('reset the world')
+                        self.mc.setBlocks(-100, 0, -100, 100, 63, 100, 0, 0)
+                        self.mc.setBlocks(-100, -63, -100, 100, -2, 100, 1, 0)
+                        self.mc.setBlocks(-100, -1, -100, 100, -1, 100, 2, 0)
+                        self.mc.player.setPos(0, 0, 0)
+                    
+                    #elif d['command'] == 'stuffDrawLine':
+                    #    self.mcDrawing.drawLine( d['args'])
+                    #elif d['command'] == 'stuffDrawSphere':
+                    #    self.mcDrawing.drawLine( d['args'])
+                    #elif d['command'] == 'stuffDrawCircle':
+                    #    self.mcDrawing.drawCircle( d['args'])
+                except Exception as e:
+                    if logger.isEnabledFor(logging.DEBUG):
+                        traceback.print_exc(file=sys.stdout)
+                    logger.error("{name:s}: exception {e:s}".format(name=self.name, e=str(e)))
+                    state = 0
+                    
+        self.connected = True
+                        
     def _handle_int(self, name, value):
         """input from scratch to adapter"""
         #  print("mcpiX, value   ", name, type(value), value)
@@ -168,6 +243,8 @@ class MinecraftAdapter(adapter.adapters.Adapter):
     def mcpiX0(self, value): self._handle_int('mcpiX0', value)
     def mcpiY0(self, value): self._handle_int('mcpiY0', value)
     def mcpiZ0(self, value): self._handle_int('mcpiZ0', value)
+    
+        
 #    
 #    def mcpiX1(self, value): self._handle_int('mcpiX1', value)
 #    def mcpiY1(self, value): self._handle_int('mcpiY1', value)
@@ -186,17 +263,21 @@ class MinecraftAdapter(adapter.adapters.Adapter):
     queueMax = 0
     
     def _pushCommand(self, name, args):
-        self.queueMax = max( self.queueMax, self.commandQueue.qsize())
-        d = dict()
-        d['command'] = name
-        d['args'] = args
-        self.commandQueue.put(d)
-        if debug:
-            print ("queue length ", self.commandQueue.qsize(), self.queueMax )
+        if self.connected:
+            self.queueMax = max( self.queueMax, self.commandQueue.qsize())
+            d = dict()
+            d['command'] = name
+            d['args'] = args
+            self.commandQueue.put(d)
+            if debug:
+                print ("queue length ", self.commandQueue.qsize(), self.queueMax )
                 
     def hello_minecraft(self):
         self._pushCommand( 'postToChat', ("hello minecraft") )   
          
+    def postToChat(self, value): 
+        self._pushCommand( 'postToChat', (value) )   
+
     def reset(self):
         self._pushCommand( 'reset', () )    
     
@@ -245,6 +326,8 @@ class MinecraftAdapter(adapter.adapters.Adapter):
                             ( self.variables['mcpiX'], 
                               self.variables['mcpiY'],
                               self.variables['mcpiZ'] ) )
+        
+         
 #    def stuffDrawLine(self):
 #        self._pushCommand( 'stuffDrawLine', 
 #                            ( self.variables['mcpiX1'], 

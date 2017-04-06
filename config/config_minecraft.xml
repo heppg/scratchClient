@@ -43,6 +43,8 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
         <input_value name="mcpiX0"> <variable name="mcpiX0"/></input_value>
         <input_value name="mcpiY0"> <variable name="mcpiY0"/></input_value>
         <input_value name="mcpiZ0"> <variable name="mcpiZ0"/></input_value>
+        
+        <input_value name="postToChat"> <variable name="postToChat"/></input_value>
         <!--
         <input_value name="mcpiX1"> <variable name="mcpiX1"/></input_value>
         <input_value name="mcpiY1"> <variable name="mcpiY1"/></input_value>
@@ -70,11 +72,12 @@ xsi:noNamespaceSchemaLocation="config.xsd" >
             <sensor name="blockFound.data"/>
         </output_value>
         
-        <input name="hello_minecraft"> <broadcast name="hello_minecraft" /></input>
         <input name="setPos">          <broadcast name="setPos" /></input>
+        <input name="getHeight">       <broadcast name="getHeight" /></input>
+        
+        <input name="hello_minecraft"> <broadcast name="hello_minecraft" /></input>
         <input name="setBlock">        <broadcast name="setBlock" /></input>
         <input name="setBlocks">       <broadcast name="setBlocks" /></input>
-        <input name="getHeight">       <broadcast name="getHeight" /></input>
         <input name="getBlockWithData"> <broadcast name="getBlock" /></input>
         <input name="reset">           <broadcast name="reset" /></input>
       

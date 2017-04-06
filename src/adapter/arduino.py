@@ -33,9 +33,9 @@ if os.name == 'posix':
     import termios
     import fcntl
 
+import time
 import logging
 import helper.logging
-import time
 logger = logging.getLogger(__name__)
 
 import errorManager
