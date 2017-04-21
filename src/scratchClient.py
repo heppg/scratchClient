@@ -40,6 +40,7 @@
 # changes:
 # 
 changes = [
+'2017-04-21 sonicpi-adapter added',
 '2017-04-06 mqtt-adapter with optional username, password',
 '2017-03-19 Minecraft-Adapter for pi, based on mcpi-library',
 '2017-03-16 Wedo2-Adapter, additional log messages., wedo2scratch script, changed two buttons in motion sensor setup.',
@@ -628,20 +629,24 @@ class ScratchListener(threading.Thread):
 
         logger.debug("scratchListener thread stopped")
         
-    broadcast_pattern = re.compile('broadcast "([^"]*)"')
+    BROADCAST = 'broadcast'
+    SENSOR_UPDATE = 'sensor-update'
+    LEN_BROADCAST = len(BROADCAST)
+    LEN_SENSOR_UPDATE = len(SENSOR_UPDATE)
     
     def processRecord(self, dataraw):
-        if  dataraw.startswith('broadcast'):
+        if  dataraw.startswith(self.BROADCAST):
 
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug('broadcast in data: %s' , dataraw)
-            broadcastString = dataraw[len('broadcast'):]
+                
+            broadcastString = dataraw[ self.LEN_BROADCAST: ]
             broadcastName = protocol.BroadcastParser(broadcastString ).parse()
             
             publishSubscribe.Pub.publish("scratch.input.command.{name:s}".format(name=broadcastName), { 'name':broadcastName } )
             # self.commandResolver.resolveBroadcast( broadcastName )
             
-        elif  dataraw.startswith('sensor-update'):
+        elif  dataraw.startswith(self.SENSOR_UPDATE):
             #print(dataraw)
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug( "sensor-update rcvd %s" , dataraw) 
@@ -650,7 +655,7 @@ class ScratchListener(threading.Thread):
             # data are name value pairs. name always in quotes, values either quotes or not (for numeric values)
             # String quotes are handled by doubling the quotes.
             # 
-            nameValueString = dataraw[len('sensor-update'):]
+            nameValueString = dataraw[ self.LEN_SENSOR_UPDATE: ]
             # print("parse ", nameValueString)
             nameValueArray = protocol.NameValueParser(nameValueString ).parse()
             # print(nameValueArray)
@@ -994,10 +999,10 @@ class ScratchClient(threading.Thread):
                     logger.warn( "  Activate remote sensor connections!" )
                     logger.info( "  No Mesh session at host: %s, port: %s" , host, port) 
                 
-                for _ in range(0,50):
+                for _ in range(0,100):
                     if self.stopped():
                         break
-                    time.sleep(0.1)
+                    time.sleep(0.05)
                 
                 count += 1
                 count %= 40
