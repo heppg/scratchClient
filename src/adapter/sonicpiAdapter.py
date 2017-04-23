@@ -34,7 +34,7 @@ import queue
 import adapter
 import socket
 
-debug = False
+debug = True
 
 # --------------------------------------------------------------------------------------
 
@@ -114,6 +114,7 @@ class SonicPi_Adapter (adapter.adapters.Adapter):
                     pass
                 if msg != None:
                     cmd = self._osc_message("/run-code", [ _agent, msg ] )
+                    if debug: print(msg)
                     if debug: print(cmd)
                     try:
                         s.sendall(cmd )
@@ -143,7 +144,8 @@ class SonicPi_Adapter (adapter.adapters.Adapter):
 
     def sonicpi(self, value):
         if debug: print ( value)
-        
+        if value.strip() == '':
+            return
         if self.state == self.CONNECTED:
             self.queue.put(value)            
                 
