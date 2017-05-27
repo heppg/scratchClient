@@ -90,6 +90,7 @@ class Adapter (configuration.AdapterSetting):
     def setOutputs(self, outputs):
         """ inputs is configuration.OutputSetting"""
         self.outputs = outputs
+        
     def addOutputs(self, outputs):
         """ inputs is configuration.OutputSetting"""
         self.outputs.extend( outputs )

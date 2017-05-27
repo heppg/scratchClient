@@ -12,8 +12,9 @@ wget http://heppg.de/ikg/administration/pi/scratchClient/download/scratchClient.
 tar xzf scratchClient.tar.gz
 chmod +r -R scratchClient/
 sudo apt-get update
-sudo apt-get install python-pip python-dev
+sudo apt-get install python-pip python3-pip python-dev python3-dev
 sudo pip install cherrypy==8.1.0 ws4py==0.3.5 mako==1.0.6 routes==2.4.1 spidev pyserial intelhex
+sudo pip3 install cherrypy==8.1.0 ws4py==0.3.5 mako==1.0.6 routes==2.4.1 spidev pyserial intelhex
 ```
 
 Specialized adapters may need more packages to install. See the docs for more information.

@@ -40,6 +40,7 @@
 # changes:
 # 
 changes = [
+'2017-05-27 lirc IR receive adapter.',
 '2017-04-22 openweathermap api, added possibility to set location.',
 '2017-04-21 sonicpi-adapter added',
 '2017-04-06 mqtt-adapter with optional username, password',

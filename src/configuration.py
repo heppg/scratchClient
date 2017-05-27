@@ -562,6 +562,26 @@ class ConfigManager_1_0:
         adapter_output_values = []
         adapter_outputs = []
         
+        #
+        # set parameters first, so they are available in xml config
+        #
+        for tle in child:
+            
+            if 'parameter' == tle.tag:
+               
+                if not ( 'name' in tle.attrib ):
+                    errorManager.append("{lc:s}: no name attribute for parameter".format(lc=loggingContext))
+                    continue
+                if not ( 'value' in tle.attrib ):
+                    errorManager.append("{lc:s}: no value  attribute for parameter".format(lc=loggingContext))
+                    continue
+                if debug: 
+                    print("parameter", tle.attrib[ 'name'], tle.attrib['value'])
+                
+                name  = str(tle.attrib['name'] )
+                value = str(tle.attrib['value'] )
+                adapter.parameters[name ] = value
+            
         if moduleMethods.hasMethod("setXMLConfig"):
             #
             # the setXMLConfig-method receives the complete adapter xml.
@@ -688,20 +708,6 @@ class ConfigManager_1_0:
                 else:
                     errorManager .append("{lc:s}: unknown output_value name '{command:s}' (check adapter python code)".format(lc=loggingContext, command=methodName))     
             
-            elif 'parameter' == tle.tag:
-               
-                if not ( 'name' in tle.attrib ):
-                    errorManager.append("{lc:s}: no name attribute for parameter".format(lc=loggingContext))
-                    continue
-                if not ( 'value' in tle.attrib ):
-                    errorManager.append("{lc:s}: no value  attribute for parameter".format(lc=loggingContext))
-                    continue
-                if debug: 
-                    print("parameter", tle.attrib[ 'name'], tle.attrib['value'])
-                
-                name  = str(tle.attrib['name'] )
-                value = str(tle.attrib['value'] )
-                adapter.parameters[name ] = value
             else:
                 # if adapter provides a 'setXmlConfig-Method, pass the current node to the adapter and let it grab 
                 # whatever needed.

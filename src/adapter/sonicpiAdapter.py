@@ -34,7 +34,7 @@ import queue
 import adapter
 import socket
 
-debug = True
+debug = False
 
 # --------------------------------------------------------------------------------------
 

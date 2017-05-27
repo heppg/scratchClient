@@ -17,7 +17,11 @@
 
 import adapter
 
-import pigpio
+try:
+    import pigpio
+except ImportError:
+    exit("This library requires pigpio\nInstall with: sudo apt-get install pigpio")
+    
 import time
 
 import logging
@@ -100,7 +104,7 @@ class HC_SR04():
                 t = pigpio.tickDiff(self._high_tick, tick)
     
                 if debug:
-                    print ("calcualted time", t)
+                    print ("calculated time", t)
                 self.t = t   
             self.state = 2
     
